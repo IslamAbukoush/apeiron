@@ -1,0 +1,42 @@
+:root { font-family: "Bahnschrift", "Helvetica Neue", sans-serif; color: #f2f2f7; background: #1c1c1e; font-synthesis: none; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; overflow: hidden; }
+button, input, select { font: inherit; }
+button, select { padding: 11px 16px; border: 1px solid #62625f; border-radius: 6px; background: #343432; color: inherit; }
+button { cursor: pointer; }
+button:hover { background: #454540; }
+button:disabled { opacity: 0.5; cursor: default; }
+button:focus-visible, summary:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid #e8ce94; outline-offset: 4px; }
+button.primary { width: 100%; background: #d9c596; color: #24241f; border-color: #d9c596; font-weight: 600; }
+button.primary:hover { background: #e8d7b1; }
+#viewport { display: block; width: 100vw; height: 100vh; }
+dialog { width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 28px; border: 1px solid #62625f; border-radius: 8px; background: #242423; color: #f2f2f7; }
+dialog::backdrop { background: rgb(16 18 15 / 40%); }
+h1 { margin: 0 0 12px; font-size: 32px; font-weight: 600; }
+h2 { margin: 0 0 16px; font-size: 23px; font-weight: 600; }
+p { line-height: 1.6; }
+#menu-description { color: #d1d1ca; margin: 0 0 24px; }
+.bindings { margin: 24px 0; font-size: 13px; color: #d1d1ca; }
+.bindings p { margin: 8px 0; }
+kbd { font: 12px monospace; color: #f1ead7; }
+details { border-top: 1px solid #51514c; padding-top: 16px; }
+summary { cursor: pointer; }
+label { display: block; font-size: 14px; margin: 20px 0 8px; }
+output { float: right; }
+input[type="range"], select { width: 100%; accent-color: #d9c596; }
+.checkbox { display: flex; gap: 8px; align-items: center; margin-bottom: 20px; }
+.note { margin: 20px 0 0; color: #aaa9a1; font-size: 12px; }
+#error { color: #ffc0af; font-size: 14px; }
+.hud { position: fixed; inset: 0; pointer-events: none; text-shadow: 0 1px 3px #161812; }
+.location { position: absolute; top: 24px; left: 28px; font-size: 19px; }
+.location span { display: block; margin-top: 6px; font-size: 13px; }
+.crosshair { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; background: #fff; border-radius: 50%; box-shadow: 0 0 2px #222; }
+#prompt { position: absolute; top: calc(50% + 24px); width: 100%; text-align: center; font-size: 15px; }
+.controls { position: absolute; bottom: 24px; left: 0; width: 100%; text-align: center; font-size: 12px; }
+.controls kbd { margin-left: 16px; }
+#diagnostics { position: fixed; top: 16px; right: 16px; margin: 0; padding: 12px; background: #242423; color: #f2f2f7; font: 12px/1.7 monospace; pointer-events: none; z-index: 2; }
+#answers { display: grid; gap: 8px; margin: 24px 0 16px; }
+#answers button { text-align: left; }
+#leave { width: 100%; }
+[hidden] { display: none !important; }
+@media (max-width: 600px) { .controls { padding: 0 16px; line-height: 2; } .location { top: 16px; left: 16px; } dialog { padding: 24px; } }
