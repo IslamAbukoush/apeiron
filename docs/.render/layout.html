@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Loreforge — 23 pages — overflow 0</title>
+<style>
+:root{--ink:#172b39;--muted:#526573;--teal:#087e83;--gold:#bb8742;--line:#d8e1e5;--pale:#eef6f5;--paper:#fff;--navy:#102b3a}
+*{box-sizing:border-box}html,body{margin:0;padding:0;background:#dce4e8;color:var(--ink);font-family:"Segoe UI",Arial,sans-serif;font-size:12.5px;line-height:1.48;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+@page{size:A4;margin:0}.page{width:210mm;height:297mm;padding:17mm 17mm 17mm;background:var(--paper);position:relative;break-after:page;page-break-after:always;overflow:hidden;margin:8mm auto}.page:last-child{break-after:auto;page-break-after:auto}.content{height:257mm}.running{font-size:9px;font-weight:600;letter-spacing:1.7px;color:var(--teal);text-transform:uppercase;border-bottom:1px solid var(--line);padding-bottom:9px;margin-bottom:17px}.eyebrow{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--teal);font-weight:700}h1{font-size:34px;line-height:1.1;margin:12px 0 16px;letter-spacing:-1px}h2{font-size:26px;line-height:1.16;margin:0 0 13px;letter-spacing:-.6px}h3{font-size:15px;line-height:1.3;margin:17px 0 7px;color:var(--teal)}p{margin:0 0 10px}strong{font-weight:650}ul,ol{padding-left:20px;margin:7px 0 12px}li{margin-bottom:5px}a{color:var(--teal);text-decoration:none}table{border-collapse:collapse;width:100%;font-size:11.6px;margin:12px 0 15px;line-height:1.42}th{text-align:left;background:var(--navy);color:white;font-size:10.5px;letter-spacing:.3px;padding:8px 9px}td{vertical-align:top;padding:8px 9px;border-bottom:1px solid var(--line)}tr:nth-child(even) td{background:#f4f7f8}.note{background:var(--pale);border-left:3px solid var(--teal);padding:12px 14px;margin:14px 0}.warm{background:#faf3e8;border-left-color:var(--gold)}.small{font-size:10.8px;color:var(--muted)}.lead{font-size:15px;line-height:1.5;color:#3b5362}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.card{padding:13px 15px;border:1px solid var(--line);border-radius:7px}.card h3{margin-top:0}.footer{position:absolute;bottom:10mm;left:17mm;right:17mm;border-top:1px solid var(--line);padding-top:7px;display:flex;justify-content:space-between;font-size:9px;letter-spacing:.4px;color:var(--muted)}.quote{font-size:17px;line-height:1.5;padding:18px 21px;background:var(--pale);border-radius:7px;margin:16px 0}.tag{display:inline-block;padding:4px 9px;background:var(--pale);color:var(--teal);border-radius:3px;font-size:10px;font-weight:650;margin:0 5px 5px 0}.steps{display:grid;gap:9px;margin:15px 0}.step{border:1px solid var(--line);border-radius:5px;display:grid;grid-template-columns:34px 1fr;align-items:start;padding:9px 12px}.num{font-weight:700;color:var(--teal);font-size:16px}.step p{margin:0}.flow{display:grid;gap:0;margin:16px 0}.flowbox{text-align:center;border:1px solid var(--line);border-radius:6px;padding:10px 14px;background:#f5f8f9}.flowbox strong{color:var(--teal)}.arrow{text-align:center;color:var(--teal);font-size:18px;line-height:23px}.flowrow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}.code{font-family:Consolas,"Courier New",monospace;white-space:pre-wrap;font-size:10.5px;line-height:1.45;padding:14px;background:#f1f5f7;border:1px solid var(--line);border-radius:5px;overflow-wrap:anywhere;margin:12px 0}.toc a{display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding:7px 0;font-size:12px}.toc .pagenum{color:var(--muted)}.cover{background:var(--navy);color:#f3f7f8}.cover .eyebrow{color:#6ad1c8}.cover h1{font-size:57px;letter-spacing:-2px;margin-top:25px}.cover .lead{color:#bfd1d9;font-size:18px;max-width:540px}.cover .running,.cover .footer{color:#bbd0d8;border-color:#3d5765}.cover .tag{background:#244654;color:#d5efed}.cover .subtitle{font-size:23px;line-height:1.3;color:#d7e7eb;margin-bottom:23px}.covermeta{position:absolute;bottom:26mm;left:17mm;right:17mm;display:flex;justify-content:space-between;align-items:end;font-size:11px;color:#c1d2da}.cover svg{width:100%;height:255px;margin-top:27px}.source{font-size:10.4px;color:var(--muted);margin-top:13px}.refs li{margin-bottom:14px;overflow-wrap:anywhere}.refs a{font-size:10.5px}.metric{font-size:24px;color:var(--teal);font-weight:700;display:block}.tight td{padding:6px 8px}.checklist li::marker{color:var(--teal)}.status{color:var(--teal);font-weight:650}
+@media print{html,body{background:white}.page{margin:0;box-shadow:none}}@media screen{.page{box-shadow:0 4px 24px #142c3b22}}
+</style>
+</head>
+<body>
+<section class="page cover" id="cover"><div class="content">
+<div class="running">Game design &amp; technical blueprint / Version 1.0</div>
+<div class="eyebrow">Working title • Loreforge</div>
+<h1>Your story.<br>A world to survive.</h1>
+<div class="subtitle">A first-person fantasy RPG<br>generated from player-written lore.</div>
+<p class="lead">A practical plan for exploration, story, survival, crafting, and combat in Three.js — with realistic art direction and local AI as the preferred starting point.</p>
+<div style="margin-top:21px"><span class="tag">FIRST PERSON</span><span class="tag">FANTASY</span><span class="tag">REALISTIC</span><span class="tag">LOCAL AI FIRST</span></div>
+<svg viewBox="0 0 660 255" role="img" aria-label="Concept diagram of a fantasy valley, village and tower">
+<defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#1b4353"></stop><stop offset="1" stop-color="#102b3a"></stop></linearGradient></defs>
+<rect width="660" height="255" fill="url(#sky)" rx="8"></rect><circle cx="525" cy="47" r="23" fill="#d5bc87"></circle>
+<path d="M0 154L99 38L161 120L250 18L364 156L433 73L562 178L660 110V255H0Z" fill="#355664"></path><path d="M76 65L99 38L127 77L104 68L94 77Z M217 57L250 18L283 58L252 47L239 62Z" fill="#bfd4d8"></path>
+<path d="M0 205Q105 127 221 198T460 172T660 194V255H0Z" fill="#244954"></path><path d="M0 234Q160 185 290 220T660 214V255H0Z" fill="#173e48"></path>
+<g fill="#9fb3ac"><path d="M115 197v-25h34v25z M167 190v-26h30v26z M215 205v-28h37v28z"></path><path d="M107 174l25-21 25 21z M160 166l22-20 23 20z M208 179l26-20 26 20z" fill="#b88b54"></path></g>
+<path d="M474 169V95h27v74z M470 100l17-29 19 29z" fill="#99a8a0"></path><path d="M484 111h7v13h-7z M484 141h7v13h-7z" fill="#233f4c"></path>
+<path d="M184 255Q176 216 206 212T295 219Q340 220 386 199T480 170" fill="none" stroke="#c0a06c" stroke-width="4" stroke-dasharray="6 5"></path>
+<text x="22" y="31" fill="#c6dbdf" font-family="Segoe UI,Arial" font-size="10" letter-spacing="2">LORE → WORLD → ADVENTURE</text>
+</svg>
+<div class="covermeta"><div>Prepared for the project owner<br><strong>10 November 2026</strong></div><div>Reference hardware<br><strong>RTX 4060 · Intel i7-13700H</strong></div></div>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>01 / 23</span></div></section>
+
+<section class="page" id="overview"><div class="content">
+<div class="running">01 / Executive overview</div><h2>The game we are planning</h2>
+<p class="lead">The player describes a fantasy world. The game turns that description into a coherent region with terrain, settlements, characters, conflict, and a playable adventure.</p>
+<div class="quote">“A forest kingdom is dying from a spreading curse. A mountain village survives by mining glowing crystals, but the old watchtower has started calling people at night.”</div>
+<p>This input should influence the landscape, architecture, characters, resources, enemies, and main quest. The player then explores in first person, gathers supplies, crafts useful equipment, fights threats, and makes story choices.</p>
+<h3>Confirmed preferences</h3>
+<table><tbody><tr><th>Decision</th><th>Confirmed direction</th></tr><tr><td>Genre</td><td>Exploration and story mixed with survival, crafting, and combat RPG systems.</td></tr><tr><td>Perspective / setting</td><td>First person; fantasy.</td></tr><tr><td>Graphics</td><td>Realistic art direction: believable scale, materials, lighting, architecture, and animation.</td></tr><tr><td>AI budget</td><td>Prefer free local inference; consider a paid provider only if local results or speed are insufficient.</td></tr><tr><td>Known hardware</td><td>NVIDIA RTX 4060 and Intel i7-13700H. System RAM, actual available VRAM, laptop power limits, and storage remain unconfirmed.</td></tr></tbody></table>
+<div class="note"><strong>Recommended approach:</strong> AI designs a structured world specification. Seeded procedural systems build it using a curated asset library. Game code controls movement, combat, economy, and quest state.</div>
+<p><strong>First release assumption:</strong> a single-player desktop-browser prototype, initially tested on Windows. This is a proposed delivery target, not a confirmed platform requirement.</p>
+<p class="small">“Loreforge” is a temporary project name. This document is a design and implementation proposal; no engine, benchmark, or generated game is claimed to exist yet. All schedules and budgets are estimates.</p>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>02 / 23</span></div></section>
+
+<section class="page" id="contents"><div class="content">
+<div class="running">02 / Document map</div><h2>From concept to a tested prototype</h2>
+<p>The plan separates the intended player experience, implementation contracts, and evidence needed to decide whether the game works.</p>
+<div class="toc">
+<a href="#experience">Player experience and gameplay loop <span class="pagenum">04</span></a>
+<a href="#scope">Prototype scope and expansion boundaries <span class="pagenum">05</span></a>
+<a href="#architecture">System architecture and technology <span class="pagenum">06</span></a>
+<a href="#generation">Lore-to-world generation pipeline <span class="pagenum">07</span></a>
+<a href="#terrain">Terrain, settlements, and buildings <span class="pagenum">08</span></a>
+<a href="#visuals">Realistic graphics and asset production <span class="pagenum">09</span></a>
+<a href="#characters">NPCs, dialogue, story, and quests <span class="pagenum">10</span></a>
+<a href="#combat">Combat and RPG progression <span class="pagenum">11</span></a>
+<a href="#survival">Survival, inventory, and crafting <span class="pagenum">12</span></a>
+<a href="#ai">Local AI, provider choices, and hardware <span class="pagenum">13</span></a>
+<a href="#contracts">World data contracts and example specification <span class="pagenum">14</span></a>
+<a href="#engineering">Code structure, engine loop, and API boundary <span class="pagenum">15</span></a>
+<a href="#persistence">Save/load, reproducibility, and recovery <span class="pagenum">16</span></a>
+<a href="#interface">Screens, controls, and player feedback <span class="pagenum">17</span></a>
+<a href="#roadmap">Development roadmap and milestone gates <span class="pagenum">18</span></a>
+<a href="#quality">Testing, generation evaluation, and acceptance <span class="pagenum">19</span></a>
+<a href="#performance">Profiling, optimization, and performance targets <span class="pagenum">20</span></a>
+<a href="#budget">Budget, risks, and scope decisions <span class="pagenum">21</span></a>
+<a href="#example">Example adventure and implementation kickoff <span class="pagenum">22</span></a>
+<a href="#references">References and glossary <span class="pagenum">23</span></a>
+</div>
+<div class="note warm"><strong>Reading guide:</strong> the first playable version is deliberately small. Combat, survival, and story all appear, but each starts with a narrow, testable implementation. Broader worlds follow only after the complete loop works.</div>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>03 / 23</span></div></section>
+
+<section class="page" id="experience"><div class="content">
+<div class="running">03 / Player experience</div><h2>One world, several reasons to explore</h2>
+<p class="lead">Exploration finds the story. Survival creates preparation. Combat creates risk. Crafting and progression make the next journey possible.</p>
+<div class="flow"><div class="flowbox"><strong>Describe &amp; confirm</strong><br>Write lore, select difficulty, review the interpreted setting.</div><div class="arrow">↓</div><div class="flowbox"><strong>Arrive &amp; investigate</strong><br>Meet villagers, discover a threat, choose an objective.</div><div class="arrow">↓</div><div class="flowrow"><div class="flowbox">Explore<br>Find clues and routes</div><div class="flowbox">Prepare<br>Gather and craft</div><div class="flowbox">Confront<br>Fight or choose a story option</div></div><div class="arrow">↓</div><div class="flowbox"><strong>Resolve &amp; develop</strong><br>Earn experience, change a local outcome, unlock the next lead.</div></div>
+<h3>Target first-session experience</h3>
+<ol><li><strong>Opening:</strong> the player enters a paragraph of lore. A short world summary makes the interpretation visible before generation.</li><li><strong>Arrival:</strong> spawn near a safe settlement with basic equipment, supplies, and a clear landmark.</li><li><strong>Discovery:</strong> a villager introduces the local problem. A journal records the objective without forcing a long conversation.</li><li><strong>Preparation:</strong> gather a few resources and craft one useful item, such as a healing draught.</li><li><strong>Expedition:</strong> travel to a ruin, encounter enemies, find evidence, and make one meaningful decision.</li><li><strong>Return:</strong> claim the result, see a persistent consequence, and save the adventure.</li></ol>
+<h3>Design rules</h3>
+<p>Provide visible goals while allowing detours. Keep survival forgiving by default. Make fights readable through animation and sound. Make story consequences small enough to represent reliably: a changed relationship, an opened route, or a different settlement condition.</p>
+<p class="small">Proposed first-session playtime: 20–30 minutes once generated. This is a design target to evaluate with playtests, not a measured result.</p>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>04 / 23</span></div></section>
+
+<section class="page" id="scope"><div class="content">
+<div class="running">04 / Scope and feasibility</div><h2>A complete small region first</h2>
+<p>Use a compact vertical slice: a short game that contains every major system and can be played from beginning to end. Preserve realistic art direction while limiting content quantity.</p>
+<table class="tight"><tbody><tr><th>Feature</th><th>First playable target</th><th>Later expansion</th></tr><tr><td>World</td><td>One bounded 256 × 256 metre region; forest and foothill variations.</td><td>Connected regions, additional biomes, streaming.</td></tr><tr><td>Settlement</td><td>8–12 modular buildings; two enterable interiors.</td><td>Larger towns, more interior templates.</td></tr><tr><td>Landmarks</td><td>One ruin or tower and one resource site.</td><td>Dungeons, caves, faction territories.</td></tr><tr><td>Characters</td><td>Six named friendly NPCs; two enemy archetypes with bounded encounter counts.</td><td>More factions, schedules, creatures.</td></tr><tr><td>Story</td><td>One main quest with 3–5 steps and two supported endings.</td><td>Linked quests and lasting regional stories.</td></tr><tr><td>Combat</td><td>Sword attack, block, stamina, damage, death, and a basic enemy controller.</td><td>Bow, spells, equipment variety, bosses.</td></tr><tr><td>Survival / crafting</td><td>Health, stamina, hunger; 4 resources and 5 recipes.</td><td>Weather exposure, farming, construction.</td></tr><tr><td>RPG</td><td>Experience and three short upgrade paths.</td><td>Broader builds, factions, reputation systems.</td></tr><tr><td>AI</td><td>World plan, NPC profiles, short contextual dialogue; offline scripted fallback.</td><td>Richer memory and new regional planning.</td></tr></tbody></table>
+<h3>Explicitly deferred</h3>
+<p>Multiplayer, infinite terrain, player-built castles, fully destructible buildings, arbitrary generated 3D meshes, unrestricted magic systems, voice synthesis, and cinematic facial animation.</p>
+<div class="note"><strong>Prompt support has boundaries.</strong> The first version interprets lore within a supported medieval-fantasy kit. An unsupported request is explained and mapped to the nearest supported option before generation. Custom names, histories, and relationships can vary much more widely than geometry.</div>
+<p><strong>Why:</strong> realistic graphics require cohesive assets and animation. AI-assisted programming can accelerate scaffolding, but movement, combat feel, navigation, and art integration still need iteration and human testing.</p>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>05 / 23</span></div></section>
+
+<section class="page" id="architecture"><div class="content">
+<div class="running">05 / Architecture</div><h2>Three layers with clear responsibilities</h2>
+<div class="flow"><div class="flowbox"><strong>Browser game / TypeScript + Three.js</strong><br>Renderer · player controller · physics · combat · inventory · UI · local saves</div><div class="arrow">↕ validated data and events</div><div class="flowbox"><strong>Local backend / Node.js + TypeScript</strong><br>Generation jobs · schema validation · world rules · dialogue context · request limits</div><div class="arrow">↕ provider adapter</div><div class="flowrow"><div class="flowbox"><strong>Local AI</strong><br>Ollama + tested model</div><div class="flowbox"><strong>Optional cloud</strong><br>Explicitly enabled provider</div><div class="flowbox"><strong>Fallback</strong><br>Templates + fixed seed</div></div></div>
+<table class="tight"><tbody><tr><th>Part</th><th>Proposed choice and purpose</th></tr><tr><td>Client build</td><td>Vite and TypeScript. HTML/CSS UI layered above the canvas; no UI framework required initially.</td></tr><tr><td>Rendering / assets</td><td>Three.js, WebGLRenderer initially, glTF/GLB models, a managed material and asset cache.</td></tr><tr><td>Physics</td><td>Rapier; capsule character controller, simple colliders, fixed simulation step. Use a pinned package version.</td></tr><tr><td>Procedural generation</td><td>Seeded noise, terrain chunks, road graph, placement constraints, modular building grammar; heavy calculations in a worker.</td></tr><tr><td>Validation / backend</td><td>Shared Zod schemas, a small HTTP server, one generation queue. No remote deployment needed for local development.</td></tr><tr><td>Storage / authoring</td><td>IndexedDB and JSON export for saves; Blender for preparing assets; Git for source and versioned specifications.</td></tr></tbody></table>
+<p><strong>Authority:</strong> the local single-player simulation owns world facts and gameplay state. The model proposes descriptions and allowed intents. Neither lore nor AI output becomes executable JavaScript.</p>
+<p class="source">Technical basis: Three.js supports glTF loading and Rapier integration. Asset loading and physics remain separate from game-specific systems. <a href="https://threejs.org/docs/pages/GLTFLoader.html">[1]</a> <a href="https://threejs.org/manual/pages/physics.html">[2]</a></p>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>06 / 23</span></div></section>
+
+<section class="page" id="generation"><div class="content">
+<div class="running">06 / Generation scheme</div><h2>Turn lore into a verified world</h2>
+<div class="steps">
+<div class="step"><div class="num">1</div><p><strong>Interpret the request.</strong> Extract setting, climate, history, factions, central conflict, mood, and forbidden or required elements. Apply input-length and feature limits.</p></div>
+<div class="step"><div class="num">2</div><p><strong>Compile a world specification.</strong> Ask for a compact structured plan using supported biome, building, enemy, and quest identifiers. Let code assign stable IDs and the seed.</p></div>
+<div class="step"><div class="num">3</div><p><strong>Validate and confirm.</strong> Check schema, counts, references, contradictions, and budget. Show a short summary and any unsupported elements to the player.</p></div>
+<div class="step"><div class="num">4</div><p><strong>Build geography.</strong> Generate terrain and buildable zones. Place settlement and quest landmarks under slope, water, spacing, and travel constraints.</p></div>
+<div class="step"><div class="num">5</div><p><strong>Connect and populate.</strong> Route roads; place modular houses, resource nodes, vegetation, NPC homes, and enemy encounters.</p></div>
+<div class="step"><div class="num">6</div><p><strong>Ground the story.</strong> Bind quest roles to locations and NPCs that actually exist. Generate character details and dialogue context using those facts.</p></div>
+<div class="step"><div class="num">7</div><p><strong>Run playability checks.</strong> Verify safe spawn, door clearance, traversable routes, obtainable quest items, reachable resources, and achievable quest endings.</p></div>
+<div class="step"><div class="num">8</div><p><strong>Publish a playable snapshot.</strong> Save the validated manifest, load essential assets, then enable player control. Stream decorative content afterward if needed.</p></div>
+</div>
+<h3>Bounded recovery</h3>
+<p>Allow at most one AI repair request for invalid planning data, then use a compatible template. For geometry failures, try at most three deterministic placement variants. If these fail, use a tested layout with the accepted lore and tell the player which elements were simplified.</p>
+<div class="note"><strong>Reproducibility:</strong> retain the accepted AI output and resolved layout. The same seed does not guarantee the same model response. Freeze a generated world instead of asking the model to recreate it on every load.</div>
+<p class="small">Expose stages and cancellation in the loading screen. Cancellation discards incomplete jobs; it must not replace an existing valid save.</p>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>07 / 23</span></div></section>
+
+<section class="page" id="terrain"><div class="content">
+<div class="running">07 / Map and building generation</div><h2>Geometry follows rules</h2>
+<h3>Terrain and navigation</h3>
+<p>Divide the initial region into sixteen 64 × 64 metre chunks. Evaluate terrain noise in world coordinates so borders match. Combine broad elevation, smaller surface variation, and biome masks. Start with one terrain style and add variation only after traversability works.</p>
+<p>Generate a coarse walkability grid from slope, water, and colliders. Place the village on low-slope land and flatten only its reserved pads. Use A* for road candidates and NPC routes, then validate them against final collision geometry. Add clearance for the actual player capsule, not only a point on a map.</p>
+<h3>Settlement layout</h3>
+<ol><li>Reserve a central square, access road, and two story locations.</li><li>Choose plots with enough room for buildings, doors, paths, and small yards.</li><li>Assign roles: inn, smithy, houses, storage, and quest-related structures.</li><li>Build the road network and ensure every active entrance connects to it.</li><li>Add props and vegetation only outside reserved movement corridors.</li></ol>
+<h3>Building grammar</h3>
+<div class="code">Building = foundation + footprint + wall modules + roof
+         + door/window sockets + role-specific props
+
+Style kit: stone base / timber walls / slate or thatch roof
+Parameters: width, depth, floors, roof pitch, wear, palette
+Constraints: legal sockets, matching scale, clear entrance
+Interiors: choose compatible room template and portal</div>
+<p>AI selects a building role and approved style; the generator picks compatible parts. This allows convincing houses with predictable colliders and reusable materials. Keep two tested interior templates for the first version; other buildings remain exterior-only and communicate that clearly.</p>
+<h3>Required checks</h3>
+<p>Reject overlapping footprints, floating foundations, buried entrances, excessive slopes, blocked roads, and quest locations outside the reachable region. Spawn enemies away from the starting safe area and keep their patrols within connected navigation zones.</p>
+<div class="note warm"><strong>Later:</strong> rivers, caves, bridges, and multi-floor procedural interiors add separate navigation problems. Add them one at a time with dedicated connectivity checks.</div>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>08 / 23</span></div></section>
+
+<section class="page" id="visuals"><div class="content">
+<div class="running">08 / Realistic art direction</div><h2>Believable fantasy at browser scale</h2>
+<p class="lead">Keep realistic proportions, surface response, lighting, and animation. Limit the area and asset variety so quality stays consistent.</p>
+<h3>Asset strategy</h3>
+<p>Build one coherent medieval kit: stone and timber architecture, forest vegetation, worn metal weapons, cloth clothing, and a small set of creatures. Use curated assets and authored modular parts. Runtime text-to-3D generation is a later experiment because it does not provide predictable topology, rigging, colliders, or style.</p>
+<table class="tight"><tbody><tr><th>Asset group</th><th>Initial production inventory</th></tr><tr><td>Environment</td><td>3 tree variants, 3 rocks, grass clusters, bushes, a small ruin kit, and terrain materials.</td></tr><tr><td>Buildings</td><td>One compatible wall/roof/foundation kit; 4 exterior variations and 2 interior templates.</td></tr><tr><td>Characters</td><td>One compatible humanoid rig, clothing variations, and 2 enemy presentations. Six profiles can share the rig.</td></tr><tr><td>Animation</td><td>Idle, walk, run, attack, block/hit response, and death; separate first-person hands/weapon setup.</td></tr><tr><td>Items / sound</td><td>Sword, shield, resource icons and pickups, crafting props, footsteps, impacts, and ambient loops.</td></tr></tbody></table>
+<h3>Rendering plan</h3>
+<p>Use physically based metallic/roughness materials, correct texture color spaces, normal maps, environment lighting, a restrained sun shadow, distance fog, and consistent tone mapping. Three.js MeshStandardMaterial provides this material workflow. <a href="https://threejs.org/docs/pages/MeshStandardMaterial.html">[3]</a></p>
+<p>Export optimized GLB assets and prepare low-detail versions of larger objects. Test KTX2/Basis textures and supported geometry compression after the uncompressed pipeline works. KTX2 can reduce delivery size and GPU texture memory through supported compressed formats. <a href="https://threejs.org/docs/pages/GLTFLoader.html">[1]</a> <a href="https://www.khronos.org/ktx/">[4]</a></p>
+<h3>Free asset starting point</h3>
+<p>Poly Haven offers HDRIs, textures, and models under CC0. It can supply environment materials and lighting; it is not assumed to provide a complete animated fantasy character set. Maintain an asset register with source, license, creator, modifications, and file version for every imported asset. <a href="https://polyhaven.com/license">[5]</a></p>
+<div class="note warm"><strong>Visual acceptance:</strong> create one reference scene first: a house, path, trees, NPC, and weapon under target lighting. Approve its appearance and performance before multiplying it across the map. Realistic does not imply a large AAA world in the prototype.</div>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>09 / 23</span></div></section>
+
+<section class="page" id="characters"><div class="content">
+<div class="running">09 / NPCs and narrative</div><h2>Characters remember a consistent world</h2>
+<p>Generate profiles from the accepted world history: name, role, personality, affiliation, home, goals, relationships, and permitted knowledge. Use a bounded wardrobe and appearance palette so every profile has a valid visual representation.</p>
+<div class="grid2"><div class="card"><h3>Simulation layer</h3><p>Finite states: idle, travel, work, talk, flee, and return home. Navigation and time-of-day rules choose actions. Distant NPCs update less often.</p></div><div class="card"><h3>Language layer</h3><p>AI writes dialogue using relevant lore, character beliefs, recent conversation, and current quest facts. A scripted response works if AI is unavailable.</p></div></div>
+<h3>Knowledge and memory</h3>
+<p>Keep canonical world facts separate from NPC beliefs. A fearful villager may be wrong about the curse, but the system must label that as a belief. Supply only relevant facts and events to each conversation. Store a short conversation summary plus structured facts such as “player returned the journal.”</p>
+<h3>Quests as verified state machines</h3>
+<div class="code">Available → Accepted → Investigating → Objective complete
+          → Choice resolved → Reward claimed
+
+Each step defines:
+preconditions / accepted events / target IDs / completion rule
+rewards / failure or recovery route / journal text</div>
+<p>Start with authored quest structures such as investigate, retrieve, escort-later, and defeat. The AI supplies names, motives, clues, and supported alternatives. A quest compiler binds roles to real NPCs, items, and reachable sites, and checks that required items can be obtained.</p>
+<h3>Dialogue cannot bypass gameplay rules</h3>
+<p>Use a response contract containing display text and optional allowed intent IDs. A gameplay handler checks eligibility before accepting a quest, granting a reward, or updating a relationship. Reject unknown IDs and stale state versions. Do not execute model-produced scripts.</p>
+<h3>Story continuity</h3>
+<p>Keep quest-critical NPCs safe in the first prototype. If a required item is lost, provide a recoverable route. Handle each reward once. A late dialogue response is ignored if the player has left, combat has begun, or the conversation state has changed.</p>
+<div class="note"><strong>First story goal:</strong> one mystery, six characters with distinct perspectives, one short quest chain, and two endings that produce a visible saved change.</div>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>10 / 23</span></div></section>
+
+<section class="page" id="combat"><div class="content">
+<div class="running">10 / Combat and RPG</div><h2>Readable action before a large skill tree</h2>
+<p class="lead">Start with one satisfying weapon and two reliable enemies. More weapon types help only after input, animation, impact, and enemy reactions feel good.</p>
+<h3>Player combat</h3>
+<p>Implement sword attacks with wind-up, active hit, and recovery phases. Sample a swept weapon volume during the active window to reduce missed hits at low frame rates. Deduplicate targets so one swing does not apply damage every frame. Blocking has an angle limit and consumes stamina; exhausted players cannot block indefinitely.</p>
+<p>Track health, stamina, attack cooldown, equipment, invulnerability windows if used, and hit reactions. Resolve damage in the simulation, using explicit values from equipment data. Never ask an LLM to judge hits or damage during combat.</p>
+<h3>Enemy behavior</h3>
+<div class="flow"><div class="flowrow"><div class="flowbox">Idle / patrol</div><div class="flowbox">Detect / pursue</div><div class="flowbox">Attack / recover</div></div><div class="arrow">↕ health, distance, visibility, and path checks</div><div class="flowbox">React to hit · retreat or reposition · return to territory · die and drop loot once</div></div>
+<p><strong>Archetype A:</strong> a humanoid melee guard with a slow, telegraphed strike. <strong>Archetype B:</strong> a creature with a short rush and longer recovery. Use the same underlying state machine where possible, with different timing and movement data.</p>
+<h3>Progression and loot</h3>
+<table class="tight"><tbody><tr><th>Path</th><th>Initial upgrades</th></tr><tr><td>Fighter</td><td>Small stamina efficiency and block improvements.</td></tr><tr><td>Survivor</td><td>Better gathering yield or slower hunger drain.</td></tr><tr><td>Explorer</td><td>Improved clue visibility or additional contextual dialogue options.</td></tr></tbody></table>
+<p>Use a few levels, capped modifiers, and fixed reward tables. Generated flavor can describe a sword, but damage and rarity must stay inside designed ranges. Progression cannot remove the only viable route to a quest.</p>
+<h3>Death and difficulty</h3>
+<p>Proposed default: reload a recent checkpoint with a clear explanation. Add harsher survival penalties later. Include an exploration-friendly difficulty that reduces enemy damage and hunger pressure without removing the story.</p>
+<p class="small">Bow combat, spellcasting, complex armor, and bosses are expansion features. This plan leaves data hooks for them without making them prototype dependencies.</p>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>11 / 23</span></div></section>
+
+<section class="page" id="survival"><div class="content">
+<div class="running">11 / Survival and crafting</div><h2>Preparation supports the adventure</h2>
+<p>Survival should encourage travel planning without turning every conversation into an urgent search for food. Use gentle hunger in normal difficulty; defer thirst, body temperature, disease, and equipment durability.</p>
+<h3>Initial resources and recipes</h3>
+<table class="tight"><tbody><tr><th>Resource</th><th>Source / purpose</th></tr><tr><td>Wood</td><td>Gathered from marked fallen branches; used for torches and the camp kit.</td></tr><tr><td>Stone</td><td>Collected from designated deposits; used in basic tools and the camp kit.</td></tr><tr><td>Herbs</td><td>Visible plants outside the safe area; used in healing and food preparation.</td></tr><tr><td>Iron scraps</td><td>Loot or deposits near the ruin; used in tools and weapon improvement.</td></tr></tbody></table>
+<p><strong>Five starting recipes:</strong> torch, healing poultice, simple hatchet, camp kit, and sword upgrade. Ingredient amounts are fixed in recipe data. Bought or looted food covers hunger; a broader cooking system comes later.</p>
+<h3>Inventory and crafting rules</h3>
+<ul><li>Use item IDs, explicit stack sizes, equipment slots, and a simple slot limit.</li><li>Show ingredients owned, ingredients missing, station requirements, and the result before crafting.</li><li>Validate ingredients and output capacity before consuming anything. Apply the transaction once.</li><li>Keep quest items in protected slots so inventory pressure cannot destroy progress.</li><li>Use a smithing station for the sword upgrade. Portable recipes work from the inventory.</li></ul>
+<h3>Resource placement and recovery</h3>
+<p>Guarantee that the required recipe resources exist in reachable locations before a quest needs them. Reserve some near the village, with higher-risk supplies farther away. Persist harvested nodes. If regeneration is enabled, store timers and enforce caps rather than rerolling on every load.</p>
+<h3>Camping</h3>
+<p>The first camp kit is a simple interaction at approved clear sites, not a freeform construction system. It can create a checkpoint and restore limited stamina. Avoid unrestricted placement near enemies, in doors, or on inaccessible terrain.</p>
+<div class="note"><strong>Balance gate:</strong> a new player should be able to reach the first objective with starter supplies. Crafting offers useful preparation; it should not force repetitive gathering before the game demonstrates its story.</div>
+<p class="small">Exact hunger rates, item quantities, damage values, and upgrade costs belong in editable balance tables and will be set through playtests.</p>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>12 / 23</span></div></section>
+
+<section class="page" id="ai"><div class="content">
+<div class="running">12 / AI strategy and hardware</div><h2>Start local, keep providers replaceable</h2>
+<p><strong>Preferred setup:</strong> Ollama running locally behind the game backend. Its local API supports JSON-schema-constrained output. Its cloud service currently does not support that feature, so local and cloud adapters need separate capability checks. <a href="https://docs.ollama.com/capabilities/structured-outputs">[6]</a></p>
+<table class="tight"><tbody><tr><th>Mode</th><th>Use and trade-off</th></tr><tr><td>Local AI — preferred</td><td>No per-request provider bill for local inference; model download, hardware, electricity, memory, and license terms still matter. Suitable for private single-PC development.</td></tr><tr><td>Templates — always available</td><td>No AI service required. Tested layouts, NPC responses, and quest templates keep the game playable during failures and benchmarking.</td></tr><tr><td>Hosted AI — optional</td><td>Useful if local generation is too slow or incoherent. Requires a provider account, explicit enablement, request caps, and a cost limit. Never silently switch to billing.</td></tr></tbody></table>
+<h3>Your RTX 4060 + i7-13700H</h3>
+<p>Benchmark a small quantized instruction model in roughly the 3B–8B class, selecting the exact model only after checking installed RAM, available VRAM, license, and structured-output quality. This range is a starting experiment, not a compatibility guarantee. Context length and quantization can change memory use significantly.</p>
+<p>The game and local inference compete for memory and compute. Generate the initial plan before the full scene is loaded; then unload the model if required. During play, serialize short dialogue requests and test CPU/offloaded inference against reduced graphics. If that is too slow, use pre-generated dialogue, a smaller model, or an explicitly enabled cloud adapter. Ollama documents memory placement and model unloading controls. <a href="https://docs.ollama.com/faq">[7]</a></p>
+<h3>Request policy</h3>
+<p>Budget one compact world-plan request and one batched character/story request, with at most one repair per failed stage. Dialogue is on demand, one request at a time, with bounded history and output length. Cache stable content; do not run language-model calls in the frame loop.</p>
+<p><strong>Failure behavior:</strong> timeout, malformed data, unavailable model, or cancellation returns a clear status and a scripted option. Preserve the accepted world and the player's progress.</p>
+<div class="note warm"><strong>Cost distinction:</strong> local execution and hosted services have different terms. Do not assume any advertised cloud free tier is permanent or enough for a game. Recheck provider pricing before enabling it. <a href="https://ollama.com/pricing">[8]</a></div>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>13 / 23</span></div></section>
+
+<section class="page" id="contracts"><div class="content">
+<div class="running">13 / Data contracts</div><h2>A world description the engine can trust</h2>
+<p>Separate creative input from resolved simulation data. The model returns semantic choices; the compiler assigns IDs, calculates layout, binds assets, and validates dependencies.</p>
+<table class="tight"><tbody><tr><th>Record</th><th>Required responsibilities</th></tr><tr><td>WorldSpec</td><td>Schema version, lore summary, supported biome/style, history, faction roles, requested counts, conflict, and content limits.</td></tr><tr><td>WorldManifest</td><td>World ID, seed, generator/asset versions, terrain parameters, resolved transforms, colliders, navigation, spawns, and stable entity IDs.</td></tr><tr><td>NPCProfile / QuestSpec</td><td>Character facts, beliefs, knowledge tags, home ID; quest steps, preconditions, referenced IDs, rewards, and recovery rules.</td></tr><tr><td>SaveGame / DialogueReply</td><td>Player/world changes and quest states; dialogue text, allowed intent, request ID, and state version.</td></tr></tbody></table>
+<h3>Illustrative compiled specification excerpt</h3>
+<div class="code">{
+  "schemaVersion": 1,
+  "worldId": "world_001",
+  "seed": 48172,
+  "generatorVersion": "0.1.0",
+  "theme": "medieval_fantasy",
+  "biome": "temperate_forest",
+  "regionMeters": 256,
+  "settlement": {"id": "village_01", "buildings": 10},
+  "landmarks": [{"id": "tower_01", "kit": "ruined_tower"}],
+  "npcCount": 6,
+  "conflict": "The tower corrupts the village crystal supply",
+  "questTemplate": "investigate_retrieve_choose"
+}</div>
+<p class="small">This excerpt explains the structure; it is not a complete JSON schema or complete save. Resolved geometry, NPCs, quests, and asset bindings are separate manifest records.</p>
+<h3>Validation beyond JSON syntax</h3>
+<p>Check enum membership, numeric ranges, unique IDs, reference integrity, and feature support. Then check meaning: a smith has a valid workplace; a quest item exists before its use; resources are reachable; both endings can resolve. A schema alone cannot guarantee those conditions.</p>
+<p><strong>Versioning:</strong> version schemas, generation algorithms, asset packs, and prompts independently. Store model identity and parameters for provenance, but treat the accepted output as the source of truth.</p>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>14 / 23</span></div></section>
+
+<section class="page" id="engineering"><div class="content">
+<div class="running">14 / Engineering layout</div><h2>A small framework with replaceable systems</h2>
+<div class="code">apps/client/src/
+  engine/       loop, renderer, input, assets, physics
+  world/        chunks, terrain, buildings, navigation
+  gameplay/     player, combat, npc, quests, inventory, crafting
+  ui/           lore entry, loading, HUD, dialogue, journal
+  persistence/  save store, migrations, export
+apps/server/src/
+  ai/           provider interface, local adapter, fallback
+  generation/   jobs, planner, compiler, validation
+  dialogue/     context selection, response validation
+packages/shared/
+  schemas/      contracts and versioned validation
+  data/         items, recipes, enemies, supported asset kits
+assets/         approved models, textures, animation, licenses
+tests/          fixtures, generator checks, browser smoke tests</div>
+<h3>Simulation loop</h3>
+<p>Read input; advance movement, physics, combat, and gameplay at a fixed step; interpolate visual transforms; update UI; render. Clamp accumulated time and cap catch-up steps so returning from a paused browser tab does not simulate an uncontrolled burst. Pause or explicitly handle hidden-tab time.</p>
+<p>Start with modules and stable entity IDs rather than a large generic ECS. Maintain explicit systems and typed events such as <strong>EnemyDefeated</strong>, <strong>ItemCollected</strong>, and <strong>QuestAdvanced</strong>. Add a more complex entity framework only when measured complexity justifies it.</p>
+<h3>Local backend contract</h3>
+<table class="tight"><tbody><tr><th>Route — proposed</th><th>Behavior</th></tr><tr><td>POST /api/world-jobs</td><td>Validate lore/settings, enqueue one bounded job, return job ID.</td></tr><tr><td>GET /api/world-jobs/:id</td><td>Return stage, warnings, progress estimate, and manifest when ready.</td></tr><tr><td>DELETE /api/world-jobs/:id</td><td>Cancel work and discard incomplete results.</td></tr><tr><td>POST /api/dialogue</td><td>Validate NPC/quest snapshot, construct context, return a bounded reply.</td></tr></tbody></table>
+<p class="small">Keep cloud secrets on the backend. Bind the development service to localhost; restrict browser origins and request sizes. The backend should derive or validate canonical facts rather than accept arbitrary client-authored instructions as trusted dialogue context.</p>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>15 / 23</span></div></section>
+
+<section class="page" id="persistence"><div class="content">
+<div class="running">15 / Save and recovery</div><h2>A generated world should stay generated</h2>
+<p>Loading a game must restore its accepted world and consequences. It should not ask the AI to invent the village again or reroll resource placement.</p>
+<h3>What a save contains</h3>
+<ul><li><strong>Identity and compatibility:</strong> save version, world ID, generator version, asset-pack version, and creation time.</li><li><strong>World snapshot:</strong> accepted lore/specification, seed, resolved manifest, entity IDs, and initial story facts.</li><li><strong>Player:</strong> position, health, stamina, hunger, inventory, equipment, experience, and upgrades.</li><li><strong>Changes:</strong> harvested nodes, defeated enemies, opened containers, doors, and placed camp kits.</li><li><strong>Narrative:</strong> quest states, claimed rewards, relationship flags, conversation summaries, and discovered clues.</li><li><strong>Time:</strong> world clock and any explicit respawn or growth timers.</li></ul>
+<h3>Storage design</h3>
+<p>Keep large static manifests separate from small save-state records in IndexedDB. Treat a manifest as immutable once accepted. Commit each checkpoint update in a transaction and retain a previous valid checkpoint. Provide JSON export/import because browser storage can be cleared or evicted.</p>
+<p>Save after quest transitions, meaningful inventory transactions, and safe checkpoints. Validate imported records and their size before use. If a new version cannot load a save safely, show a compatibility message and preserve the original file instead of silently regenerating it.</p>
+<h3>Reproducibility has limits</h3>
+<p>A fixed seed and pinned generator can reproduce procedural layout. Exact floating-point physics may differ across platforms, so this is not a promise of deterministic simulation replay. For stable load behavior, store resolved placement and relevant state, then rebuild physics from that data.</p>
+<h3>Failure scenarios and expected behavior</h3>
+<table class="tight"><tbody><tr><th>Failure</th><th>Recovery</th></tr><tr><td>AI fails during generation</td><td>Offer bounded repair or a tested template; preserve previous saves.</td></tr><tr><td>Browser closes mid-save</td><td>Restore the last committed checkpoint; retain the backup.</td></tr><tr><td>Asset fails to load</td><td>Retry once, use a compatible placeholder for decoration, or block entry if collision/quest-critical.</td></tr><tr><td>Model is unavailable during play</td><td>Keep simulation running; use authored dialogue and quest options.</td></tr></tbody></table>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>16 / 23</span></div></section>
+
+<section class="page" id="interface"><div class="content">
+<div class="running">16 / Interface and controls</div><h2>Make the world understandable</h2>
+<table class="tight"><tbody><tr><th>Screen / state</th><th>Essential information and actions</th></tr><tr><td>New world</td><td>Lore field, example prompt, supported setting, difficulty, generation mode, seed option, and a clear Generate action.</td></tr><tr><td>World interpretation</td><td>Short setting summary, expected biome/conflict, unsupported requests, and Confirm or Edit.</td></tr><tr><td>Generation</td><td>Current stage, completed stages, warnings, cancellation, retry/fallback options. Do not invent a precise ETA.</td></tr><tr><td>Exploration HUD</td><td>Health, stamina, contextual hunger warning, interaction prompt, active quest hint, and compass.</td></tr><tr><td>Dialogue</td><td>NPC name, readable text, selectable intents, optional free-text question, request status, and Exit.</td></tr><tr><td>Inventory / crafting</td><td>Equipment, stack counts, recipe ingredients, required station, and clear transaction feedback.</td></tr><tr><td>Journal / pause</td><td>Known facts, current objectives, map discoveries, save/export, settings, and accessibility controls.</td></tr></tbody></table>
+<h3>Proposed default controls</h3>
+<div class="grid2"><div class="card"><p><strong>WASD</strong> — move<br><strong>Mouse</strong> — look<br><strong>Shift</strong> — sprint<br><strong>Space</strong> — jump<br><strong>E</strong> — interact</p></div><div class="card"><p><strong>Left mouse</strong> — attack<br><strong>Right mouse</strong> — block<br><strong>I / J</strong> — inventory / journal<br><strong>1–4</strong> — quick items<br><strong>Escape</strong> — release pointer / pause</p></div></div>
+<p class="small">Controls are provisional and should be remappable. In a browser, pointer lock requires player interaction; reacquire it through an explicit Resume action.</p>
+<h3>Comfort and accessibility</h3>
+<ul><li>Adjustable sensitivity, field of view, text size, and master/music/effects volume.</li><li>Disable head bob, camera shake, and motion blur by default or offer clear toggles.</li><li>Pair color with icons or text for damage, rarity, and quest states.</li><li>Show subtitles for essential audio information; avoid putting critical clues only in sound.</li><li>Pause single-player action during menus and conversations in the initial version.</li></ul>
+<div class="note"><strong>AI remains visible where useful:</strong> show when a reply is being generated and provide a scripted alternative. Keep model names, token counts, and debug data in developer tools rather than ordinary gameplay screens.</div>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>17 / 23</span></div></section>
+
+<section class="page" id="roadmap"><div class="content">
+<div class="running">17 / Development roadmap</div><h2>Build in stages with exit criteria</h2>
+<p>The following is a planning estimate for one developer with AI coding assistance, part-time work, and reusable assets. Assume roughly 15–25 focused hours per week. Re-estimate after the first two milestones; asset and animation work may extend the schedule.</p>
+<table class="tight"><tbody><tr><th>Milestone</th><th>Indicative window</th><th>Deliverable and gate</th></tr><tr><td>M0 — technical spike</td><td>Week 1</td><td>Record RAM/VRAM; load a PBR reference scene; benchmark one local model; confirm toolchain and licenses.</td></tr><tr><td>M1 — engine foundation</td><td>Weeks 2–3</td><td>First-person movement, collision, interaction, loading, and pause. Complete a fixed test route without clipping or falling through terrain.</td></tr><tr><td>M2 — procedural region</td><td>Weeks 4–5</td><td>Seeded terrain, village, houses, roads, resources, and navigation. Test multiple seeds for overlap and connectivity.</td></tr><tr><td>M3 — AI world planning</td><td>Weeks 6–7</td><td>Lore input → validated plan → generated region. Invalid responses, cancellation, timeout, and fallback all work.</td></tr><tr><td>M4 — action and survival</td><td>Weeks 8–10</td><td>Sword/block, two enemy archetypes, inventory, five recipes, hunger, and small progression system.</td></tr><tr><td>M5 — story and saves</td><td>Weeks 11–13</td><td>Six NPCs, dialogue, one quest with two endings, checkpoints, and save import/export. Full loop works without live AI.</td></tr><tr><td>M6 — realistic presentation</td><td>Weeks 14–16</td><td>Cohesive asset kit, weapon/character animation, lighting, audio, two interiors, and graphics settings.</td></tr><tr><td>M7 — evaluation and polish</td><td>Weeks 17–18</td><td>Generation benchmark, playtests, performance tuning, fixes, demo build, and technical documentation.</td></tr></tbody></table>
+<p><strong>Work already started in earlier milestones continues:</strong> reference-scene art begins in M0; meaningful save support starts with stable world IDs; testing begins with each system. M6 integrates and polishes assets rather than introducing visuals from scratch.</p>
+<h3>Scope checkpoint after M3</h3>
+<p>If prompt relevance or local inference speed is weak, reduce world complexity and compare a smaller model, stronger model, and template baseline. If rendering is the bottleneck, reduce scene density before adding map size. Do not compensate for failed foundations by adding more features.</p>
+<div class="note warm"><strong>Deliverable hierarchy:</strong> first a technical prototype; then a complete short game; then better visuals and variety. An initial moving scene may be quick to produce, but it is not evidence that the complete RPG is finished.</div>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>18 / 23</span></div></section>
+
+<section class="page" id="quality"><div class="content">
+<div class="running">18 / Testing and acceptance</div><h2>Prove the world can be played</h2>
+<h3>Generation benchmark</h3>
+<p>Create 20 prompts spanning ordinary fantasy settings, dense lore, sparse descriptions, contradictory requests, and unsupported features. Use three fixed seeds per prompt: 60 generation cases per provider/model configuration. Store inputs, accepted specifications, repair counts, validation failures, timings, and versions.</p>
+<table class="tight"><tbody><tr><th>Area</th><th>Acceptance evidence</th></tr><tr><td>Schema and bounds</td><td>Every world offered to the player passes validation. Track first-pass success separately; provisional goal ≥95% before repair/fallback.</td></tr><tr><td>Geometry / paths</td><td>All published worlds have a safe spawn, valid entrances, and reachable mandatory NPCs, resources, and quest targets. Reject failed layouts.</td></tr><tr><td>Lore alignment</td><td>Human rubric scores setting, required elements, central conflict, and NPC consistency. Record unsupported details and compromises explicitly.</td></tr><tr><td>Combat</td><td>No multiple damage from one swing; blocking obeys stamina/angle rules; death and loot trigger once; behavior remains stable at varied frame rates.</td></tr><tr><td>Inventory / quests</td><td>No negative stacks, duplicate rewards, consumed ingredients on failed craft, or unreachable quest states.</td></tr><tr><td>Save/load</td><td>Round-trip preserves manifest, inventory, quest ending, harvested nodes, and player state. Old/corrupt saves fail clearly.</td></tr><tr><td>Failure handling</td><td>Test model offline, timeout, malformed output, cancelled jobs, stale dialogue replies, missing assets, and storage errors.</td></tr></tbody></table>
+<h3>Automated checks and human playtests</h3>
+<p>Use unit tests for rules with important invariants; generator property tests for many seeds; integration tests for provider validation and saves; and a browser smoke test for lore entry, loading, movement, and interaction. Avoid tests that only restate implementation details.</p>
+<p>Run 5–8 short formative playtests with consent. Ask players to generate a world, craft an item, finish the quest, and reload their save. Observe confusion, combat readability, motion comfort, and whether the resulting world matches the requested story.</p>
+<h3>Optional academic evaluation</h3>
+<p>If this becomes thesis material, compare a procedural/template baseline against AI-guided generation using the same asset library, map budgets, and seeds. Report relevance, consistency, playability, latency, and cost. Preserve failures and human rating criteria; do not use only the generating model to judge its own output.</p>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>19 / 23</span></div></section>
+
+<section class="page" id="performance"><div class="content">
+<div class="running">19 / Optimization plan</div><h2>Profile before expanding the world</h2>
+<p>Use the RTX 4060 / i7-13700H machine as the reference system, with RAM, power mode, available VRAM, browser version, resolution, and model settings recorded. Laptop heat and power limits can change results, so compare repeatable runs.</p>
+<table class="tight"><tbody><tr><th>Metric</th><th>Provisional target — not yet measured</th></tr><tr><td>Rendering</td><td>1080p, medium settings, 60 FPS target. Frame-time median ≤16.7 ms, 95th percentile ≤25 ms, 99th ≤50 ms on a fixed traversal.</td></tr><tr><td>Procedural compilation</td><td>≤15 seconds after the specification is accepted, excluding first-time downloads and model inference.</td></tr><tr><td>Initial AI generation</td><td>≤120 seconds total as an initial usability target. Record cold model loading separately; show stages and cancellation.</td></tr><tr><td>Dialogue</td><td>Useful short reply within 5 seconds preferred. Offer a scripted reply after an 8-second wait or on failure. Benchmark with the game rendering.</td></tr><tr><td>Memory / stability</td><td>No sustained growth after five generate/load/dispose cycles. Keep combined graphics and inference memory below available capacity with headroom.</td></tr><tr><td>Loading</td><td>Provisional essential-asset payload ≤150 MB; measure compressed transfer and first-playable time separately from full preload.</td></tr></tbody></table>
+<h3>Optimization order</h3>
+<ol><li><strong>Find the limit:</strong> separate CPU simulation, GPU rendering, asset loading, garbage collection, and AI latency with recorded profiles.</li><li><strong>Reduce repeated work:</strong> share geometry/materials, cache asset loads, instance compatible vegetation, and merge suitable static modules. Instancing reduces draw calls for repeated meshes. <a href="https://threejs.org/docs/pages/InstancedMesh.html">[9]</a></li><li><strong>Control detail:</strong> add distance-based detail, chunk-level visibility, lower shadow distance, and adjustable vegetation density.</li><li><strong>Control simulation:</strong> use simple static colliders, a small nearby enemy budget, lower-rate distant NPC updates, and worker-based terrain calculations.</li><li><strong>Control memory:</strong> dispose unused GPU resources, release decoded images, compress textures, and unload AI models when necessary.</li><li><strong>Retest the same routes:</strong> compare before/after traces and visual quality. Keep a change only when it improves the intended metric without breaking behavior.</li></ol>
+<div class="note"><strong>Fallback hardware profile:</strong> lower resolution, shorter shadows, reduced foliage, and scripted dialogue. Do not sacrifice correctness or quest reachability to hit a frame-rate number.</div>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>20 / 23</span></div></section>
+
+<section class="page" id="budget"><div class="content">
+<div class="running">20 / Budget and risks</div><h2>Spend effort where the prototype needs it</h2>
+<table class="tight"><tbody><tr><th>Budget area</th><th>Planning assumption</th></tr><tr><td>Core software / local hosting</td><td>Target $0 in required service fees using open tooling and a local development server. Verify component and model licenses when selected.</td></tr><tr><td>Local inference</td><td>No per-token provider charge; electricity, downloads, disk space, and hardware usage remain real costs.</td></tr><tr><td>Art and audio</td><td>Start with free compatible assets. Optional $0–100 total reserve for missing animation or cohesive asset kits; this is a budget proposal, not a price quote.</td></tr><tr><td>Optional hosted AI</td><td>Start with a hard project cap of $10/month if explicitly enabled. Revisit after measuring actual token use; no automatic overage or fallback billing.</td></tr><tr><td>Public hosting</td><td>Not required for the local prototype. A public demo needs a separate hosting, access-control, and per-user usage plan.</td></tr></tbody></table>
+<p class="small">Cloud estimate: cost = input tokens / 1,000,000 × input rate + output tokens / 1,000,000 × output rate. Include repairs and dialogue; record actual provider charges. Pricing and free-tier availability must be checked when a provider is selected.</p>
+<h3>Primary risks and responses</h3>
+<table class="tight"><tbody><tr><th>Risk</th><th>Practical response</th></tr><tr><td>Realism exceeds the art budget</td><td>Approve a reference scene, use one coherent kit, limit environments and animations.</td></tr><tr><td>AI invents incompatible content</td><td>Restrict vocabulary to supported assets/templates; validate semantics and explain compromises.</td></tr><tr><td>Local model harms game performance</td><td>Generate before scene load, cap context, serialize requests, unload/offload, or use scripted dialogue.</td></tr><tr><td>Procedural world is unplayable</td><td>Placement constraints, final-geometry route checks, bounded retries, tested fallback layouts.</td></tr><tr><td>Story breaks after player actions</td><td>Explicit quest states, stable IDs, protected key NPCs/items, and idempotent rewards.</td></tr><tr><td>Scope grows without a complete loop</td><td>Use milestone gates. Defer extra systems until the 20–30 minute adventure is playable.</td></tr></tbody></table>
+<p><strong>Privacy and access:</strong> local mode keeps lore and dialogue on the local machine by design. For any cloud mode, state what is sent and let the player choose it. Treat user lore as data, cap input/output size, and never expose provider secrets in browser code.</p>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>21 / 23</span></div></section>
+
+<section class="page" id="example"><div class="content">
+<div class="running">21 / Example adventure and kickoff</div><h2>The Hollow Watch</h2>
+<div class="quote">“An isolated forest village mines blue crystals. The old tower has started calling villagers at night, and something is poisoning the woods.”</div>
+<p><strong>Generated interpretation:</strong> a temperate foothill forest; ten stone-and-timber buildings; a crystal resource site; a ruined tower; a frightened village; and a conflict between survival and stopping corruption.</p>
+<table class="tight"><tbody><tr><th>Game element</th><th>Concrete result</th></tr><tr><td>Six characters</td><td>Elder, smith, herbalist, miner, hunter, and a relative of a missing worker. Each has a distinct goal and knowledge boundary.</td></tr><tr><td>Exploration</td><td>A safe village route, a dangerous forest path, and an optional clue near the mine. A visible tower provides orientation.</td></tr><tr><td>Survival / crafting</td><td>Starter food; gather herbs and wood; craft a healing item or torch before travelling.</td></tr><tr><td>Combat</td><td>A corrupted creature on the approach and a hostile humanoid near the tower, using the two supported archetypes.</td></tr><tr><td>Quest</td><td>Accept investigation → collect a miner's journal → reach the tower → recover the crystal focus → choose its fate.</td></tr><tr><td>Two endings</td><td>Destroy the focus: safer forest, reduced mining. Stabilize it: mining continues, with a guarded tower. Both use explicit saved flags.</td></tr></tbody></table>
+<h3>The first implementation tasks</h3>
+<ol class="checklist"><li>Confirm system RAM, available VRAM, free disk space, and whether the initial deliverable is browser-only.</li><li>Create the TypeScript client/backend/shared-contract workspace and pin dependency versions.</li><li>Build the realistic reference scene and measure movement/rendering without AI.</li><li>Benchmark one small local model on five representative world-planning prompts.</li><li>Implement a hand-authored manifest that can run this example without AI.</li><li>Add procedural generation, then plug the AI planner into the same manifest compiler.</li></ol>
+<div class="note"><strong>Immediate success condition:</strong> a player can walk through a small fantasy location, interact with an NPC, fight one enemy, craft one item, finish one objective, and reload the result. This is the foundation for expanding the generator.</div>
+<p class="small">Still open: installed RAM, desired deadline, preferred combat difficulty, free-text dialogue priority, and browser versus packaged desktop distribution. The plan can proceed using the stated defaults until these are decided.</p>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>22 / 23</span></div></section>
+
+<section class="page" id="references"><div class="content">
+<div class="running">22 / References and glossary</div><h2>Sources and implementation vocabulary</h2>
+<p class="small">Official sources checked on 10 November 2026. These support tool capabilities and asset terms; the architecture, scope, budgets, schedules, and targets are project proposals. Recheck service terms before implementation.</p>
+<ol class="refs">
+<li><strong>Three.js — GLTFLoader.</strong> glTF loading and supported asset/compression extensions.<br><a href="https://threejs.org/docs/pages/GLTFLoader.html">https://threejs.org/docs/pages/GLTFLoader.html</a></li>
+<li><strong>Three.js — Physics.</strong> Physics integration and fixed-step simulation.<br><a href="https://threejs.org/manual/pages/physics.html">https://threejs.org/manual/pages/physics.html</a></li>
+<li><strong>Three.js — MeshStandardMaterial.</strong> Metallic/roughness physically based materials.<br><a href="https://threejs.org/docs/pages/MeshStandardMaterial.html">https://threejs.org/docs/pages/MeshStandardMaterial.html</a></li>
+<li><strong>Khronos — KTX.</strong> KTX2 and Basis Universal texture distribution.<br><a href="https://www.khronos.org/ktx/">https://www.khronos.org/ktx/</a></li>
+<li><strong>Poly Haven — Asset License.</strong> CC0 terms for site assets.<br><a href="https://polyhaven.com/license">https://polyhaven.com/license</a></li>
+<li><strong>Ollama — Structured Outputs.</strong> Local JSON-schema output; cloud capability limitation.<br><a href="https://docs.ollama.com/capabilities/structured-outputs">https://docs.ollama.com/capabilities/structured-outputs</a></li>
+<li><strong>Ollama — FAQ.</strong> Memory placement, context, and model lifecycle.<br><a href="https://docs.ollama.com/faq">https://docs.ollama.com/faq</a></li>
+<li><strong>Ollama — Pricing.</strong> Local execution versus metered hosted services.<br><a href="https://ollama.com/pricing">https://ollama.com/pricing</a></li>
+<li><strong>Three.js — InstancedMesh.</strong> Draw-call reduction for repeated geometry/materials.<br><a href="https://threejs.org/docs/pages/InstancedMesh.html">https://threejs.org/docs/pages/InstancedMesh.html</a></li>
+</ol>
+<h3>Short glossary</h3>
+<p class="small"><strong>Procedural generation:</strong> code creates content from rules and parameters. <strong>Seed:</strong> the starting value for repeatable random choices. <strong>PBR:</strong> physically based rendering. <strong>GLB:</strong> binary glTF 3D asset. <strong>LOD:</strong> level of detail based on viewing conditions. <strong>Manifest:</strong> resolved description of actual world entities and assets. <strong>VRAM:</strong> GPU memory. <strong>Quantization:</strong> a reduced-precision model representation. <strong>Vertical slice:</strong> a small complete section of the intended experience.</p>
+</div><div class="footer"><span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>23 / 23</span></div></section>
+
+<script>
+const pages = [...document.querySelectorAll('.page')];
+pages.forEach((page, i) => {
+  const footer = document.createElement('div');
+  footer.className = 'footer';
+  footer.innerHTML = '<span>LOREFORGE / DESIGN &amp; TECHNICAL PLAN</span><span>' + String(i + 1).padStart(2,'0') + ' / ' + pages.length + '</span>';
+  page.appendChild(footer);
+});
+document.querySelectorAll('.toc a').forEach(link => {
+  const target = document.querySelector(link.getAttribute('href'));
+  link.querySelector('.pagenum').textContent = String(pages.indexOf(target) + 1).padStart(2,'0');
+});
+window.addEventListener('load', async () => {
+  await document.fonts.ready;
+  const overflow = pages.flatMap((page, i) => {
+    const content = page.querySelector('.content');
+    return content.scrollHeight > content.clientHeight + 2 ? [{page:i+1, section:page.id, excess:content.scrollHeight-content.clientHeight}] : [];
+  });
+  const report = document.createElement('script');
+  report.type = 'application/json'; report.id = 'layout-report';
+  report.textContent = JSON.stringify({pages:pages.length, overflow, links:document.querySelectorAll('a').length});
+  document.body.appendChild(report);
+  document.title = 'Loreforge — ' + pages.length + ' pages — overflow ' + overflow.length;
+});
+</script>
+
+
+<script type="application/json" id="layout-report">{"pages":23,"overflow":[],"links":39}</script></body></html>
