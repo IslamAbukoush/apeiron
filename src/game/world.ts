@@ -2,6 +2,20 @@ import * as THREE from 'three';
 
 export type Interactable = { id: string; name: string; kind: 'npc' | 'marker' };
 
+export function disposeScene(scene: THREE.Scene) {
+  const geometries = new Set<THREE.BufferGeometry>();
+  const materials = new Set<THREE.Material>();
+  scene.traverse(object => {
+    if (object instanceof THREE.Mesh || object instanceof THREE.LineSegments) {
+      geometries.add(object.geometry);
+      for (const material of Array.isArray(object.material) ? object.material : [object.material]) materials.add(material);
+    }
+    if (object instanceof THREE.DirectionalLight) object.shadow.dispose();
+  });
+  geometries.forEach(geometry => geometry.dispose());
+  materials.forEach(material => material.dispose());
+}
+
 export function createWorld() {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#c6c3ac');
@@ -109,18 +123,6 @@ export function createWorld() {
 
   return {
     scene, colliders, debug,
-    dispose() {
-      const geometries = new Set<THREE.BufferGeometry>();
-      const disposableMaterials = new Set<THREE.Material>();
-      scene.traverse(object => {
-        if (object instanceof THREE.Mesh || object instanceof THREE.LineSegments) {
-          geometries.add(object.geometry);
-          for (const material of Array.isArray(object.material) ? object.material : [object.material]) disposableMaterials.add(material);
-        }
-      });
-      geometries.forEach(geometry => geometry.dispose());
-      disposableMaterials.forEach(material => material.dispose());
-      sun.shadow.dispose();
-    },
+    dispose: () => disposeScene(scene),
   };
 }

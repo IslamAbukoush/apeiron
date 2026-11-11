@@ -11,7 +11,15 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite, normally http://127.0.0.1:5173. Click **Enter playground** to capture the mouse. A desktop browser with WebGL 2 and a keyboard/mouse is required. Everything in this milestone runs locally; no keys, services, or downloaded game assets are needed.
+Open the local URL printed by Vite, normally http://127.0.0.1:5173. Describe a world, click **Generate world**, then **Enter world** to capture the mouse. **Enter original playground** opens the original courtyard. A desktop browser with WebGL 2 and a keyboard/mouse is required. Everything runs locally; no keys, services, or downloaded game assets are needed.
+
+## World generation
+
+Try **Candy world**: the map has pink ground, cream paths, lollipops, gumdrops, cotton-candy trees and a giant cupcake landmark. Other themes are forest, desert, frozen, volcanic and cosmic, each with distinct geometry and lighting. The planner chooses the theme with the most matching keywords; ties use the listed theme order (candy first). Unrecognized descriptions explicitly fall back to a forest.
+
+Descriptions also support a color (pink, purple, blue, green, red, orange or yellow), nighttime keywords, and sparse/lush density. These are keyword rules, not general language understanding: unsupported details and negations are not interpreted. No AI model is connected. This is a procedural foundation for a future model-backed planner, not unrestricted text-to-3D generation.
+
+An optional seed recreates the same layout with the same description and generator version. Leaving it blank picks a fresh seed, shown in the result and at the waystone. Maps contain clear crossing paths, a safe spawn, simple collision proxies, a caretaker and a themed landmark. Create another world from the pause menu; replacing a map releases its graphics resources. Worlds and player progress are **not saved** on reload.
 
 ## Controls
 
@@ -37,7 +45,7 @@ npm run test:browser
 
 The browser test uses installed Google Chrome through Playwright and starts/stops its own Vite server on port 5174. If Chrome is missing, install it or change the Playwright channel to an installed browser. Test screenshots are written to ignored `artifacts/`; failure output goes to ignored `test-results/`.
 
-Unit tests cover landing, jumping, double-jump prevention, wall collision at sprint speed, diagonal normalization, wall sliding, ceilings, fall recovery, interaction distance, and occlusion. The browser test covers real mouse capture, movement, dialogue, pause/resume, settings, reset, and jumping, and checks for uncaught runtime errors. It explicitly releases pointer lock to exercise pause; manually verify physical Escape and mouse feel on the target laptops.
+Unit tests cover physics, interaction, generation determinism, prompt validation, theme selection and map/spawn collision safety across themes and seeds. Browser tests cover the original playable loop plus world creation, themed dialogue, map replacement, settings, fallback feedback and reload behavior. They check for uncaught runtime errors and explicitly release pointer lock to exercise pause; manually verify physical Escape and mouse feel on the target laptops.
 
 The production build goes to `dist/`. `npm run preview` serves that build locally. The initial bundle includes Three.js and may trigger Vite's 500 kB chunk-size advisory; this is not a build failure.
 
@@ -49,6 +57,8 @@ The production build goes to `dist/`. `npm run preview` serves that build locall
 | `src/game/game.ts` | Renderer, fixed-step loop, input/pointer lock, pause, settings, dialogue coordination, cleanup |
 | `src/game/physics.ts` | Player body state, gravity, jumping, collision resolution, spawn reset |
 | `src/game/world.ts` | Deterministic placeholder scene, static colliders, interaction metadata, resource disposal |
+| `src/game/generation.ts` | Serializable map definitions and deterministic local prompt/seed planner |
+| `src/game/generated-world.ts` | Theme-specific procedural meshes, map collision proxies and lighting |
 | `src/game/interaction.ts` | Centre-screen raycast with range and occlusion checks |
 | `src/ui/interface.ts` | Accessible native dialogs, HUD and settings markup |
 | `src/style.css` | Menu/HUD styling |
@@ -57,7 +67,7 @@ Physics uses metres, a Y-up coordinate system, and a feet-position player state 
 
 ## Scope and limitations
 
-This is milestone 1, not the generation pipeline. Geometry is handmade placeholder content; NPC replies are scripted. There are no model calls, savefiles, world slots, free-text conversations, NPC pathfinding, quests, audio, or area transitions yet. Reloading resets the playground. The future opening conversation still needs free-text input.
+The first-person foundation and local procedural world generation are implemented. Geometry is made from built-in primitives; NPC replies are scripted and reflect the current map. There are no model calls, savefiles, world slots, multi-turn opening conversations, NPC pathfinding, quests, audio, or area transitions yet. Reloading returns to world creation. The free-text world prompt is a first step toward the planned opening conversation.
 
 The simple static colliders support this courtyard, not arbitrary generated meshes, slopes, moving bodies, or complex terrain. Collision representation and navigation must be revisited before importing generated environments. Assets, dialogue, and settings are not persisted. Performance must still be measured on both target laptops; automated browser timing is not a hardware benchmark.
 
