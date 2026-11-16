@@ -6,9 +6,57 @@ import {createWorld} from '../src/game/world';
 import {Vector3} from 'three';
 import {isActionRequest} from '../src/game/npc-contract';
 
+test('streaming publishes reply and audio before completion without replaying the action',async()=>{
+  const world=createWorld();let stream!:ReadableStreamDefaultController<Uint8Array>;
+  const response=new ReadableStream<Uint8Array>({start(controller){stream=controller;}});
+  const npc=new Caretaker(world.npc,world.npcCollider,world.navigationColliders,world.lamp,
+    (async()=>new Response(response,{headers:{'Content-Type':'application/x-ndjson'}})) as typeof fetch);
+  npc.llmEnabled=true;const chunks:string[]=[];npc.onAudioChunk=chunk=>chunks.push(chunk);
+  const pending=npc.command('Follow me',new Vector3(0,0,8));
+  const emit=(type:string,data:unknown)=>stream.enqueue(new TextEncoder().encode(JSON.stringify({type,data})+'\n'));
+  emit('reply',{speech:'I will follow you.',plan:['FOLLOW_PLAYER']});emit('audio','AAAAAA==');
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.match(npc.speech,/I will follow you/);assert.equal(npc.thinking,true);assert.equal(npc.replyStreamed,true);
+  assert.deepEqual(chunks,['AAAAAA==']);
+  const version=npc.speechVersion;
+  emit('done',{speech:'I will follow you.',plan:['FOLLOW_PLAYER'],model:'live',latencyMs:2000});stream.close();await pending;
+  assert.equal(npc.speechVersion,version);assert.equal(npc.thinking,false);
+  npc.dispose();world.dispose();
+});
+
 test('questions mentioning landmarks do not become movement commands',()=>{
   for(const question of ['What is the waystone?','Why is the lantern dark?','Tell me about this place','Can you explain the inscription?']) assert.equal(isActionRequest(question),false);
   for(const command of ['Follow me','Please light the lantern','Can you show me the waystone?','Jump']) assert.equal(isActionRequest(command),true);
+});
+
+test('local text streaming commits a final reply for separate local TTS',async()=>{
+  const world=createWorld();let stream!:ReadableStreamDefaultController<Uint8Array>;
+  const response=new ReadableStream<Uint8Array>({start(controller){stream=controller;}});
+  const npc=new Caretaker(world.npc,world.npcCollider,world.navigationColliders,world.lamp,
+    (async()=>new Response(response,{headers:{'Content-Type':'application/x-ndjson','X-NPC-Audio':'none'}})) as typeof fetch);
+  npc.llmEnabled=true;const pending=npc.command('What is this?',new Vector3(0,0,8));
+  const emit=(type:string,data:unknown)=>stream.enqueue(new TextEncoder().encode(JSON.stringify({type,data})+'\n'));
+  emit('text','A lantern.');await new Promise(resolve=>setTimeout(resolve,0));
+  const version=npc.speechVersion;assert.equal(npc.replyStreamed,false);
+  emit('done',{speech:'A lantern.',plan:[],provider:'local',latencyMs:500});stream.close();await pending;
+  assert.equal(npc.speechVersion,version+1);assert.equal(npc.replyStreamed,false);
+  npc.dispose();world.dispose();
+});
+
+test('conversation transcript reaches chat before final audio completion',async()=>{
+  const world=createWorld();let stream!:ReadableStreamDefaultController<Uint8Array>;
+  const response=new ReadableStream<Uint8Array>({start(controller){stream=controller;}});
+  const npc=new Caretaker(world.npc,world.npcCollider,world.navigationColliders,world.lamp,
+    (async()=>new Response(response,{headers:{'Content-Type':'application/x-ndjson'}})) as typeof fetch);
+  npc.llmEnabled=true;const transcripts:string[]=[];npc.onSpeechChunk=text=>transcripts.push(text);
+  const pending=npc.command('What do you see here?',new Vector3(0,0,8));
+  const emit=(type:string,data:unknown)=>stream.enqueue(new TextEncoder().encode(JSON.stringify({type,data})+'\n'));
+  emit('text','I see ');emit('text','trees.');
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.deepEqual(transcripts,['I see ','I see trees.']);assert.equal(npc.thinking,true);
+  emit('done',{speech:'I see trees.',plan:[],latencyMs:5000});stream.close();await pending;
+  assert.equal(npc.speech,'I see trees.');assert.equal(npc.action,'WAIT');assert.equal(npc.thinking,false);
+  npc.dispose();world.dispose();
 });
 
 test('conversation answer persists through task execution and questions reject unsolicited plans',async()=>{

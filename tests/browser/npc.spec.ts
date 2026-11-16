@@ -3,7 +3,7 @@ test.beforeEach(async({page})=>{
   await page.route('**/api/npc/thought/status',route=>route.fulfill({json:{configured:false}}));
 });
 
-test('player free-text request reaches model and controls following',async ({page}) => {
+test('explicit follow request persists without sending it to the decision model',async ({page}) => {
   const requests: string[]=[];
   await page.route('**/api/npc/status',route => route.fulfill({json:{configured:true,model:'test model',remaining:5}}));
   await page.route('**/api/npc/decision',route => {
@@ -16,13 +16,14 @@ test('player free-text request reaches model and controls following',async ({pag
   await page.getByLabel('Use decision model for the caretaker').check();
   await page.getByRole('button',{name:'Enter original playground'}).click();
   await page.keyboard.down('KeyW');
-  await expect(page.locator('#prompt')).toContainText('caretaker');
+  await expect(page.locator('#hud')).toBeVisible();
+  await expect(page.locator('#prompt')).toContainText('caretaker',{timeout:10000});
   await page.keyboard.up('KeyW');
   await page.keyboard.press('KeyE');
   await page.getByLabel('Ask the caretaker to do something').fill('Please follow me');
   await page.getByRole('button',{name:'Ask caretaker',exact:true}).click();
   await expect(page.locator('#npc-subtitle')).toContainText('I will follow you');
-  expect(requests).toContain('Please follow me');
+  expect(requests).not.toContain('Please follow me');
   await page.screenshot({path:'artifacts/npc-conversation.png'});
   await expect(page.locator('#hud')).toBeVisible();
   await expect(page.locator('#npc-status')).toHaveAttribute('data-action','FOLLOW_PLAYER');

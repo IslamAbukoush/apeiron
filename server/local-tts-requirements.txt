@@ -1,0 +1,2 @@
+# Paradee 1.3.1, fixed to the inspected upstream revision. CPU ONNX runtime.
+paradee @ git+https://github.com/sahilmahendrakar/paradee.git@2de547e45da92840a636c499eb0782e988be1e47

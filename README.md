@@ -11,9 +11,70 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite, normally http://127.0.0.1:5173. Click **Enter playground** to capture the mouse. A desktop browser with WebGL 2 and a keyboard/mouse is required. Local NPC behavior needs no keys or downloaded assets. The optional decision model uses the AnyRouter setup in `AI-TEST`.
+Open the local URL printed by Vite, normally http://127.0.0.1:5173. Click **Enter playground** to capture the mouse. A desktop browser with WebGL 2 and a keyboard/mouse is required. Local NPC behavior needs no keys or downloaded assets. Conversation and vision default to local Qwen3.5-2B; speech uses local Paradee. The optional fast decision API remains Google AI Studio.
 
-## Chat, vision, and Google voice
+## Vision and Google decisions
+
+The active decision provider is now **Google Gemini Decision 1** through
+`POST /v1beta/decisions`, using the server-only `GEMINI_API_KEY` when its separate checkbox is enabled. Local conversation needs no key.
+AnyRouter is no longer called by the game. The standalone `AI-TEST` Snake project
+is retained as a separate legacy demo. Optional `GEMINI_DECISION_MODEL` and
+`GEMINI_DECISION_LIMIT` override the model and local attempt allowance; the
+provider quota still applies. The previous five-attempt local cap is removed.
+Enable **Use decision model for the caretaker** to use the Google fast controller.
+
+When **Include game screenshot and pointed target** is checked, every message
+now captures and sends a fresh game screenshot. No keyword gate filters object
+questions. The **Latest screenshot sent** preview shows the exact image and red
+crosshair. **Server received screenshot** confirms validated receipt by the
+backend; it does not claim the model's interpretation is always correct. With
+sharing unchecked, the status explicitly says text only.
+
+## Response speed and local voice
+
+Conversation and screenshots use **local Qwen3.5-2B Q4_K_M** on the GPU.
+Replies stream immediately; optional speech is generated separately by
+**Paradee 1.3.1 on the CPU**. Neither local model needs an API key or cloud quota.
+Run `npm run llm:setup` once to install and initialize local conversation.
+See [local LLM setup and measured GPU results](docs/LOCAL_LLM.md).
+
+Install local speech once with Python 3.10+ and Git available:
+
+```sh
+npm run tts:setup
+npm run dev
+```
+
+Setup creates an isolated `.local-tts/venv`, downloads the small model and warms
+its pronunciation data. The game keeps a background worker loaded and closes it
+when Vite stops. After setup, the worker uses the cached model in offline mode.
+Enable **NPC voice replies** in the menu. The default voice is `am_puck`; set
+`PARADEE_VOICE=af_heart`, `bf_isabella` or `bm_fable` in `.env.local` to change it.
+
+Measured synthesis on this laptop: 139-212 ms for 2.9-4.75 seconds of audio.
+Starting the worker also takes a few seconds once. Text is never held for speech.
+These measurements exclude LLM inference time and are not latency guarantees.
+See [local speech setup and model comparison](docs/LOCAL_VOICE.md).
+
+Screenshots are attached to every message while the include-view checkbox is
+enabled. Uncheck it for text-only conversation. `NPC_LOCAL_MODEL` selects the
+local model (it must be installed in the project's Ollama store). There is no
+local daily request allowance; speed depends on hardware and context length.
+
+Google remains an explicit alternative: set `NPC_LLM_PROVIDER=gemini` to use
+`GEMINI_TEXT_MODEL`. Set `NPC_VOICE_PROVIDER=gemini` to restore native cloud
+speech. Google quotas apply when those options or its decision model are used.
+No automatic cloud fallback occurs for local model failures.
+
+## Chat, vision, and voice
+
+For local microphone input, run `npm run stt:setup` once. While exploring, hold
+**V** to speak, then release to send. You can also open chat with **T** and hold
+the **Hold to talk** button. **Escape** cancels. Parakeet v2 recognizes English
+on the CPU; no speech-recognition API key is required. Allow microphone access
+when prompted. V keeps the mouse captured and leaves chat unfocused. The device
+stays ready during play, with audio captured only during a hold; pausing closes
+it. See [microphone setup and behavior](docs/MICROPHONE.md).
 
 Press **T** anywhere in the courtyard to type in the persistent caretaker chat.
 You do not need to approach the NPC. **E** interaction still works as before.
@@ -34,21 +95,27 @@ reachability; it rejects sky, raised surfaces, walls, and occupied spots. The NP
 stays at the reached destination. Object tops and jumping onto platforms are not
 supported. Vision is per-message, not continuous surveillance or autonomous sight.
 
-Enable **Google AI voice replies** in the pause menu for server-generated speech.
-The default model is `gemini-2.5-flash-preview-tts`, voice Kore, with optional
-`GEMINI_TTS_MODEL` override. Google returns PCM, which the server wraps in WAV.
-The audio player appears in chat; if the browser blocks autoplay, press play.
-Errors remain visible and text replies continue working. Turning voice off or
-sending a new message stops old playback. Keys stay on the local server.
+Enable **NPC voice replies** in the pause menu for local speech. The audio player
+appears in chat; if the browser blocks autoplay, press play. Errors remain visible
+and text replies continue working. Turning voice off or sending a new message
+stops old playback. Model files stay in the ignored `.local-tts` directory.
 
 ## Decision-driven caretaker
 
+The caretaker now uses the active world's named object registry. Try **Show me
+where is the bench**, **Go to the big cup cake** in a candy world, **Inspect the
+frost spire** in a frozen world, **Sit on the bench**, or **Turn off the lantern**.
+Guiding waits for you to follow. You can point at an object and say **Inspect
+that**. Ambiguous targets ask for clarification, and missing objects do not send
+the NPC to an unrelated destination. The same controller and actions work in
+every world. See [world-aware behavior and extension guide](docs/WORLD_AWARE_NPC.md).
+
 ### Hybrid conversation and responsive controls
 
-Enable **Gemini conversation and planning** to get generated dialogue and a
+Enable **NPC conversation and planning** to get generated dialogue and a
 short sequence of actions. Enable **Use decision model for the caretaker**
-for AnyRouter's faster action choices. Both can run together: the caretaker
-reacts locally immediately, then accepts the decision-model result, and Gemini's
+for Google's fast action choices. Both can run together: the caretaker
+reacts locally immediately, then accepts the decision-model result, and the LLM's
 deliberate plan takes priority once ready. A late fast result cannot overwrite it.
 Try “Introduce yourself, then show me the waystone and tend the lantern.”
 Jump/hop requests produce a short visual hop; movement safety remains local.
@@ -58,15 +125,11 @@ the world no longer waits in conversation mode for the network. Cached static
 navigation connectivity reduces repeated route-search work. New commands and
 reset invalidate stale responses. Escape still pauses normally.
 
-Google credentials use `GEMINI_API_KEY` in the ignored root `.env.local`.
-`GEMINI_MODEL` defaults to `gemini-2.5-flash`. Gemini keeps the last four
-conversation exchanges in memory and can plan up to three supported actions.
-There is a separate 20-attempt Gemini allowance per server session and a
-25-second upstream timeout. No retries are made. Failed Gemini requests leave
-the current action running and report the error in the HUD. This local cap is
-not a provider billing limit. Optional **Google AI voice replies** generates speech
-through Google on the server and plays the returned WAV in the browser. Voice
-has its own 20-attempt session cap. If autoplay is blocked, use the audio player.
+Local conversation keeps up to three recent exchanges and can plan up to three
+supported actions. Requests have a 40-second deadline; failures are visible in
+the HUD. New requests cancel stale work. Local speech runs independently.
+Google credentials for explicitly selected cloud features remain in the ignored
+root `.env.local` and never enter the browser bundle.
 
 The caretaker walks around obstacles, inspects the waystone, tends a working lantern,
 follows the player, guides them to the waystone, and waits on request. Approach and
@@ -74,11 +137,10 @@ press **E** to use quick commands or type a request. Choose **Back to exploring*
 to return from inspection. Walking and automatic model requests stop while paused (an already
 in-flight request can finish); dialogue requests can still be submitted.
 
-To use `AI-TEST`'s `vllm-sr/d3-ultra` model, enable **Use decision model for the
-caretaker** in the start/pause menu. The local Node/Vite middleware automatically
-reads `ANYROUTER_API_KEY` from `AI-TEST/.env.local`, or a root `.env.local` override.
-Keys never go into the browser bundle. No separate Snake server is required;
-`AI-TEST` remains unchanged and can still run independently.
+Enable **Use decision model for the caretaker** in the start/pause menu for
+Google's `gemini-decision-1`. Vite reads `GEMINI_API_KEY` from the ignored root
+`.env.local`; keys never enter the browser bundle. No separate Snake server is
+required.
 
 The model receives courtyard positions, the current task, visited landmarks,
 lantern state and the latest player request. It selects an allowed action and an
@@ -86,14 +148,11 @@ authored reply using the same typed Decisions API as the Snake demo. Gemini
 adds generated dialogue and a longer action plan when its checkbox is enabled.
 The game handles navigation and executes interactions only on arrival.
 
-By default, AI is off and there are **five upstream attempts per Vite server
-session**, shared across tabs. Automatic decisions are spaced at least 12 seconds
-after the last response. Failed calls count toward the cap; there are no automatic
-retries. Timeouts, quota errors and invalid answers visibly switch to local
-behavior. Switching the checkbox back on does not replenish the server allowance.
-Restarting Vite/config hot reload resets the local cap, not the provider's quota.
-Only raise `ANYROUTER_NPC_LIMIT` in `.env.local` if your account supports more
-requests; `ANYROUTER_MODEL` optionally overrides the model ID.
+The fast decision controller is opt-in. Automatic decisions wait at least
+12 seconds after the last response. Upstream failures do not retry automatically;
+errors visibly switch to local behavior. Google account quotas apply across
+applications; restarting Vite does not reset those quotas. An optional local
+`GEMINI_DECISION_LIMIT` applies per server session and is reset on restart.
 
 The HUD identifies local/model/fallback behavior and reports model latency. **Return
 to spawn** resets the player and caretaker (including pending requests), but keeps
@@ -123,6 +182,7 @@ An optional seed recreates the same layout with the same description and generat
 | Shift | Run |
 | Space | Jump |
 | T | Open caretaker chat from anywhere |
+| Hold V | Record a spoken message; release to transcribe and send |
 | E | Talk to or inspect the object under the crosshair, within 3 metres |
 | Escape | Release mouse and pause; close dialogue to the pause menu |
 | F3 | Toggle frame rate, frame time, draw calls, triangles, position, and collision diagnostics |

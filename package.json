@@ -7,8 +7,11 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "tsx --test tests/*.test.ts",
-    "test:browser": "playwright test"
+    "test": "tsx --test --test-concurrency=2 tests/*.test.ts",
+    "test:browser": "playwright test",
+    "tts:setup": "node scripts/setup-tts.mjs",
+    "llm:setup": "node scripts/setup-llm.mjs",
+    "stt:setup": "node scripts/setup-stt.mjs"
   },
   "dependencies": {
     "three": "^0.187.0"

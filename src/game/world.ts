@@ -1,3 +1,4 @@
+import {WorldRegistry,addBench} from './world-registry';
 import * as THREE from 'three';
 
 export type Interactable = { id: string; name: string; kind: 'npc' | 'marker' };
@@ -17,6 +18,7 @@ export function disposeScene(scene: THREE.Scene) {
 }
 
 export function createWorld() {
+  const registry=new WorldRegistry('courtyard','The first courtyard',19.5);
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#c6c3ac');
   scene.fog = new THREE.Fog('#c6c3ac', 24, 75);
@@ -64,12 +66,14 @@ export function createWorld() {
     }
     box(x, 4.75, -4, 1.3, 0.45, 15, materials.stone);
   }
-  box(0, 4.4, -11, 12, 0.7, 1.4, materials.stone);
-  box(-10, 0, 4, 3, 0.45, 2.6, materials.stone);
-  box(-12, 0, 4, 1.5, 0.9, 2.6, materials.stone);
-  box(9, 0, 6, 1.7, 1.4, 1.7, materials.wood);
-  box(11, 0, 7, 1.3, 0.7, 1.3, materials.wood);
-  box(-9, 0, -9, 3, 0.55, 1.5, materials.stone);
+  const arch=box(0, 4.4, -11, 12, 0.7, 1.4, materials.stone);
+  registry.register(arch,{id:'arch',name:'Stone arch',aliases:['arch','colonnade'],kind:'arch',description:'A stone arch spanning the colonnade.'});
+  registry.register(box(-10, 0, 4, 3, 0.45, 2.6, materials.stone),{id:'low-platform',name:'Low stone platform',aliases:['low platform','platform'],kind:'platform',description:'A low stone platform for jumping.'});
+  registry.register(box(-12, 0, 4, 1.5, 0.9, 2.6, materials.stone),{id:'high-platform',name:'High stone platform',aliases:['high platform','platform'],kind:'platform',description:'A taller stone platform beside the low platform.'});
+  registry.register(box(9, 0, 6, 1.7, 1.4, 1.7, materials.wood),{id:'crate-1',name:'Large wooden crate',aliases:['large crate','big crate','crate','box'],kind:'crate',description:'A large wooden crate.'});
+  registry.register(box(11, 0, 7, 1.3, 0.7, 1.3, materials.wood),{id:'crate-2',name:'Small wooden crate',aliases:['small crate','crate','box'],kind:'crate',description:'A small wooden crate.'});
+  const garden=box(-9, 0, -9, 3, 0.55, 1.5, materials.stone);
+  registry.register(garden,{id:'garden',name:'Stone garden platform',aliases:['garden','garden platform'],kind:'platform',description:'A low stone platform beside the trees.'});
 
   // Deterministic placeholder foliage; no remote assets or model calls.
   for (let i = 0; i < 24; i++) {
@@ -77,12 +81,14 @@ export function createWorld() {
     const radius = 14 + (i % 4) * 1.2;
     const x = Math.cos(angle) * radius;
     const z = Math.sin(angle) * radius;
-    box(x, 0, z, 0.55, 3.5, 0.55, materials.wood);
+    const treeTrunk=box(x, 0, z, 0.55, 3.5, 0.55, materials.wood);
     const canopy = new THREE.Mesh(new THREE.IcosahedronGeometry(2 + i % 3 * 0.25, 1), materials.leaves);
     canopy.position.set(x, 4.1 + i % 3 * 0.3, z);
     canopy.scale.set(1, 1.25, 1);
     canopy.castShadow = true;
     scene.add(canopy);
+    treeTrunk.userData.worldObjectId=`tree-${i}`;treeTrunk.userData.interactable={id:`tree-${i}`,name:`Green tree ${i+1}`,kind:'marker'};
+    registry.register(canopy,{id:`tree-${i}`,name:`Green tree ${i+1}`,aliases:['tree','green tree'],kind:'tree',color:'green',description:'A tree with a green angular canopy.'});
   }
 
   const npc = new THREE.Group();
@@ -117,6 +123,10 @@ export function createWorld() {
     lanternOn = !lanternOn; lampMaterial.emissiveIntensity = lanternOn ? 2 : 0; lampLight.intensity = lanternOn ? 8 : 0;
   } };
 
+  registry.register(marker,{id:'waystone',name:'Weathered waystone',aliases:['waystone','stone','inscription'],kind:'waystone',description:'A weathered waystone. Its inscription reads: Every world begins with a place to stand.',actions:['read']});
+  registry.register(lantern,{id:'lantern',name:'Courtyard lantern',aliases:['lantern','lamp','light'],kind:'lantern',color:'yellow',description:'A lantern on a wooden post.',actions:['toggle']},{state:()=>lamp.get()?'on':'off',interact:()=>{lamp.toggle();return lamp.get()?'The lantern is now lit.':'The lantern is now off.';}});
+  addBench(scene,colliders,registry);
+
   scene.add(new THREE.HemisphereLight('#fff2d5', '#65724b', 2));
   const sun = new THREE.DirectionalLight('#ffe1ae', 3);
   sun.position.set(-15, 23, 12);
@@ -133,7 +143,7 @@ export function createWorld() {
   scene.add(debug);
 
   return {
-    scene, colliders, debug, npc, npcCollider, lamp,
+    scene, colliders, debug, npc, npcCollider, lamp, registry,
     navigationColliders: colliders.filter(c => c !== npcCollider),
     dispose() {
       const geometries = new Set<THREE.BufferGeometry>();

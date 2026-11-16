@@ -7,6 +7,8 @@ import { Caretaker } from './npc';
 import {pointedTarget,captureView} from './perception';
 import type {ViewContext} from './npc-contract';
 import {GoogleVoice} from '../ui/google-voice';
+import {MicrophoneInput} from '../ui/microphone';
+import {formatAiUsage,type AiStatus} from '../ui/ai-usage';
 import { generateWorld, type WorldDefinition } from './generation';
 import { createGeneratedWorld } from './generated-world';
 
@@ -32,7 +34,7 @@ export function startGame(root: HTMLElement) {
   let definition: WorldDefinition | null = null;
   let ready = false;
   const player = new PlayerBody();
-  let caretaker = new Caretaker(world.npc,world.npcCollider,world.navigationColliders,world.lamp);
+  let caretaker = new Caretaker(world.npc,world.npcCollider,world.navigationColliders,world.lamp,undefined,world.registry);
   const camera = new THREE.PerspectiveCamera(75, 1, 0.05, 100);
   camera.rotation.order = 'YXZ';
   const keys = new Set<string>();
@@ -51,30 +53,65 @@ export function startGame(root: HTMLElement) {
   const fixedStep = 1 / 120;
   let serviceStatus = 'Local behavior available';
   let speechVersion=0;
+  let streamingChatLine:HTMLParagraphElement|undefined;
   let chatTyping=false;
   let view:ViewContext={};
   const voice=new GoogleVoice(ui.voiceStatus);
+  const microphone=new MicrophoneInput(ui.chatMic,ui.micStatus,text=>{ui.chatInput.value='';void askCaretaker(text,true);});
+  let pushToTalk=false;
+  let talkKey:string|undefined;
+  let talkPointer:number|undefined;
+  caretaker.onAudioChunk=pcm=>{if(ui.npcVoice.checked&&!microphone.recording)voice.chunk(pcm);};
+  caretaker.onSpeechChunk=showStreamingSpeech;
   function logChat(who:string,text:string){
     const line=document.createElement('p');line.textContent=`${who}: ${text}`;ui.chatHistory.append(line);
     while(ui.chatHistory.children.length>60)ui.chatHistory.firstElementChild?.remove();
     ui.chatHistory.scrollTop=ui.chatHistory.scrollHeight;
+    return line;
+  }
+  function showStreamingSpeech(text:string){
+    if(!streamingChatLine)streamingChatLine=logChat('Caretaker',text);
+    else streamingChatLine.textContent=`Caretaker: ${text}`;
+    ui.chatHistory.scrollTop=ui.chatHistory.scrollHeight;
+    ui.npcSubtitle.textContent=text;
+    if(ui.conversation.open && ui.speaker.textContent==='The caretaker')ui.speech.textContent=text;
   }
   function takeView(){
     updateCamera();world.scene.updateMatrixWorld(true);renderer.render(world.scene,camera);
-    view={image:captureView(ui.canvas),target:pointedTarget(camera,world.scene.children)};
+    view={image:captureView(ui.canvas),target:pointedTarget(camera,world.scene.children,world.registry.limit)};
     ui.chatTarget.textContent=view.target?`Pointing at ${view.target.name}${view.target.ground?' · walkable ground candidate':''}`:'No pointed target';
   }
   function focusChat(){
     takeView();chatTyping=true;keys.clear();document.exitPointerLock();ui.chatInput.focus();
   }
   ui.chatInput.addEventListener('pointerdown',()=>{if(!chatTyping)focusChat();},{signal});
-  ui.chatClose.addEventListener('click',()=>{chatTyping=false;ui.chatInput.blur();void resume();},{signal});
+  ui.chatClose.addEventListener('click',()=>{microphone.cancel();chatTyping=false;ui.chatInput.blur();void resume();},{signal});
+  function startMicrophone(){voice.stop();void microphone.start();}
+  ui.chatMic.addEventListener('pointerdown',event=>{
+    if(event.button!==0||ui.chatMic.disabled||microphone.recording)return;
+    event.preventDefault();talkPointer=event.pointerId;ui.chatMic.setPointerCapture(event.pointerId);startMicrophone();
+  },{signal});
+  ui.chatMic.addEventListener('pointerup',event=>{if(talkPointer===event.pointerId){talkPointer=undefined;void microphone.finish();}},{signal});
+  const cancelPointer=()=>{if(talkPointer!==undefined){talkPointer=undefined;if(microphone.recording)microphone.cancel();}};
+  ui.chatMic.addEventListener('pointercancel',cancelPointer,{signal});
+  ui.chatMic.addEventListener('lostpointercapture',cancelPointer,{signal});
+  void fetch('/api/npc/transcribe/status',{signal}).then(r=>r.json()).then(status=>{
+    if(!status.configured){ui.chatMic.disabled=true;ui.micStatus.textContent='Local microphone recognition is not installed.';}
+  }).catch(()=>{ui.micStatus.textContent='Local microphone recognition is unavailable.';});
   ui.chatForm.addEventListener('submit',event=>{event.preventDefault();const text=ui.chatInput.value;ui.chatInput.value='';void askCaretaker(text,true);},{signal});
   ui.npcVoice.addEventListener('change',()=>{if(!ui.npcVoice.checked)voice.stop();},{signal});
-  void fetch('/api/npc/thought/status',{signal}).then(r=>r.json()).then(status=>{
-    ui.npcLLM.disabled=!status.configured;
-    ui.npcLLM.checked=!!status.configured;caretaker.llmEnabled=!!status.configured;
-  }).catch(()=>{ui.npcLLM.disabled=true;});
+  let aiStatus:AiStatus={},thoughtInitialized=false,checkingUsage=false;
+  async function refreshThoughtStatus(){
+    if(checkingUsage||signal.aborted)return;checkingUsage=true;
+    try{
+      const r=await fetch('/api/npc/thought/status',{signal});if(!r.ok)throw Error();aiStatus=await r.json();
+      ui.npcLLM.disabled=!aiStatus.configured;
+      if(!thoughtInitialized){ui.npcLLM.checked=!!aiStatus.configured;caretaker.llmEnabled=!!aiStatus.configured;thoughtInitialized=true;}
+      caretaker.autonomyInterval=aiStatus.provider==='groq'?45:12;
+    }catch{if(!thoughtInitialized)ui.npcLLM.disabled=true;}
+    finally{checkingUsage=false;}
+  }
+  void refreshThoughtStatus();const usageTimer=setInterval(()=>void refreshThoughtStatus(),5000);
   ui.npcLLM.addEventListener('change',()=>{caretaker.llmEnabled=ui.npcLLM.checked;},{signal});
   void fetch('/api/npc/status',{signal}).then(r => r.json()).then(status => {
     serviceStatus = status.configured ? `${status.model} · ${status.remaining} requests available this server session. Off until enabled.`
@@ -83,16 +120,23 @@ export function startGame(root: HTMLElement) {
     ui.npcAI.disabled = !status.configured;
   }).catch(() => { if (!signal.aborted) ui.npcService.textContent = 'Decision server unavailable. Local behavior is active.'; });
 
-  async function askCaretaker(message: string,fromChat=false) {
+  async function askCaretaker(message: string,_fromChat=false) {
     if (!message.trim()) return;
-    if(!fromChat)takeView();
+    microphone.cancel();pushToTalk=false;
+    streamingChatLine=undefined;
+    takeView();
     logChat('You',message);
-    voice.stop();
+    if(ui.npcVoice.checked)voice.beginStream();else voice.stop();
+    caretaker.voiceEnabled=ui.npcVoice.checked;
     ui.npcFeedback.textContent = caretaker.aiEnabled ? 'Waiting for the decision model…' : 'Using local behavior.';
-    const response=caretaker.command(message.trim().slice(0,400),player.position,ui.chatView.checked?view:{});
+    const context:ViewContext=ui.chatView.checked?view:{};
+    ui.chatPreview.hidden=!context.image;
+    if(context.image)ui.chatImage.src=context.image;
+    const response=caretaker.command(message.trim().slice(0,400),player.position,context);
     // Restore controls immediately from the submit gesture; never wait for the network.
-    chatTyping=false;ui.chatInput.blur();void resume();
+    chatTyping=false;ui.chatInput.blur();if(document.pointerLockElement!==ui.canvas)void resume();
     await response;
+    void refreshThoughtStatus();
     if (signal.aborted) return;
     if (ui.conversation.open && ui.speaker.textContent === 'The caretaker') {
       ui.speech.textContent = caretaker.speech;
@@ -118,6 +162,7 @@ export function startGame(root: HTMLElement) {
   }
   function showMenu() {
     if(chatTyping)return;
+    microphone.suspend();pushToTalk=false;
     playing = false;
     keys.clear();
     accumulator = 0;
@@ -133,6 +178,7 @@ export function startGame(root: HTMLElement) {
   }
   async function resume() {
     if (contextLost || !ready) return;
+    if(!ui.chatMic.disabled)void microphone.prepare().catch(()=>{});
     ui.conversation.close();
     ui.menu.close();
     if(document.activeElement instanceof HTMLElement)document.activeElement.blur();
@@ -179,7 +225,7 @@ export function startGame(root: HTMLElement) {
         world.lamp.toggle();
         ui.speech.textContent = world.lamp.get() ? 'You light the courtyard lantern.' : 'You put out the courtyard lantern.';
       } else {
-      ui.speech.textContent = definition ? `${definition.name}\n${definition.summary}\nWorld seed: ${definition.seed}\nYour wish: ${definition.prompt}` : 'The inscription reads: “Every world begins with a place to stand.” The path ends here, for now.';
+      const object=world.registry.get(item.id);ui.speech.textContent=object?`${object.description}${object.state?` Current state: ${object.state}.`:''}`:'There is nothing to inspect here.';
       }
     }
     ui.conversation.showModal();
@@ -191,11 +237,14 @@ export function startGame(root: HTMLElement) {
     world = next;
     definition = nextDefinition;
     const ai=caretaker.aiEnabled,llm=caretaker.llmEnabled;
-    caretaker.dispose();voice.stop();
-    caretaker=new Caretaker(world.npc,world.npcCollider,world.navigationColliders,world.lamp);
+    caretaker.dispose();voice.stop();microphone.cancel();pushToTalk=false;
+    caretaker=new Caretaker(world.npc,world.npcCollider,world.navigationColliders,world.lamp,undefined,world.registry);
     caretaker.aiEnabled=ai;caretaker.llmEnabled=llm;
+    caretaker.autonomyInterval=aiStatus.provider==='groq'?45:12;
+    caretaker.onAudioChunk=pcm=>{if(ui.npcVoice.checked&&!microphone.recording)voice.chunk(pcm);};
+    caretaker.onSpeechChunk=showStreamingSpeech;
     if(definition)caretaker.say(`Welcome to ${definition.name}. ${definition.summary}`);
-    view={};ui.chatHistory.replaceChildren();
+    view={};streamingChatLine=undefined;ui.chatHistory.replaceChildren();
     previous.dispose();
     player.reset(); yaw = 0; pitch = 0; accumulator = 0; target = null;
     entered = false; ready = true;
@@ -287,7 +336,7 @@ export function startGame(root: HTMLElement) {
   }, { signal });
   ui.colliders.addEventListener('change', () => { world.debug.visible = ui.colliders.checked; }, { signal });
   ui.reset.addEventListener('click', () => {
-    voice.stop();
+    voice.stop();microphone.cancel();pushToTalk=false;
     player.reset(); caretaker.reset(); yaw = 0; pitch = 0; updateCamera();
   }, { signal });
   document.addEventListener('pointerlockchange', () => {
@@ -313,10 +362,16 @@ export function startGame(root: HTMLElement) {
     pitch = THREE.MathUtils.clamp(pitch - event.movementY * sensitivity, -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01);
   }, { signal });
   document.addEventListener('keydown', event => {
+    if(event.code==='Escape'){microphone.suspend();pushToTalk=false;}
+    if(pushToTalk&&event.code===talkKey){event.preventDefault();return;}
+    if(event.target===ui.chatMic && ['Space','Enter'].includes(event.code)){
+      event.preventDefault();if(!event.repeat&&!ui.chatMic.disabled){pushToTalk=true;talkKey=event.code;startMicrophone();}return;
+    }
     if(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement){
       if(event.code==='Escape' && chatTyping){event.preventDefault();chatTyping=false;ui.chatInput.blur();void resume();}return;
     }
     if(event.code==='KeyT' && playing && !event.repeat){event.preventDefault();focusChat();return;}
+    if(event.code==='KeyV' && playing){event.preventDefault();if(!event.repeat&&!ui.chatMic.disabled){pushToTalk=true;talkKey=event.code;startMicrophone();}return;}
     if (event.code === 'F3') {
       event.preventDefault();
       if (!event.repeat) ui.diagnostics.hidden = !ui.diagnostics.hidden;
@@ -330,8 +385,9 @@ export function startGame(root: HTMLElement) {
       if (target) openConversation(target);
     }
   }, { signal });
-  document.addEventListener('keyup', event => { keys.delete(event.code); }, { signal });
+  document.addEventListener('keyup', event => { keys.delete(event.code);if(event.code===talkKey&&pushToTalk){pushToTalk=false;talkKey=undefined;void microphone.finish();} }, { signal });
   function suspend() {
+    microphone.suspend();pushToTalk=false;
       chatTyping=false;
     keys.clear();
     if (document.pointerLockElement === ui.canvas) document.exitPointerLock();
@@ -377,13 +433,18 @@ export function startGame(root: HTMLElement) {
     if (elapsed >= 0.4) {
       ui.npcStatus.textContent = `${caretaker.activity} · ${caretaker.source} ${caretaker.thoughtStatus}`;
       ui.npcSubtitle.textContent=caretaker.speech;
+      ui.chatVision.textContent=caretaker.visionStatus;
+      ui.aiUsageHud.textContent=ui.aiUsageMenu.textContent=formatAiUsage(aiStatus);
       if(speechVersion!==caretaker.speechVersion){
         speechVersion=caretaker.speechVersion;
-          logChat('Caretaker',caretaker.speech);
-          if(ui.npcVoice.checked)void voice.speak(caretaker.speech);
+          if(streamingChatLine){streamingChatLine.textContent=`Caretaker: ${caretaker.speech}`;streamingChatLine=undefined;}
+          else logChat('Caretaker',caretaker.speech);
+          if(ui.npcVoice.checked && !microphone.recording && !caretaker.replyStreamed)void voice.speak(caretaker.speech,caretaker.replyAudio);
       }
       ui.npcStatus.dataset.action = caretaker.action;
+      ui.npcStatus.dataset.target = caretaker.targetId;
       ui.npcStatus.dataset.x = world.npc.position.x.toFixed(2);
+      ui.npcStatus.dataset.y = world.npc.position.y.toFixed(2);
       ui.npcStatus.dataset.z = world.npc.position.z.toFixed(2);
       ui.npcStatus.dataset.lantern = String(world.lamp.get());
       ui.npcStatus.dataset.visited = [...caretaker.visited].join(',');
@@ -402,8 +463,10 @@ export function startGame(root: HTMLElement) {
   });
   return () => {
     events.abort();
+    clearInterval(usageTimer);
     caretaker.dispose();
     voice.stop();
+    microphone.suspend();
     if('speechSynthesis' in window)speechSynthesis.cancel();
     if (document.pointerLockElement === ui.canvas) document.exitPointerLock();
     renderer.setAnimationLoop(null);

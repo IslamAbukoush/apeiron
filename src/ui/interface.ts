@@ -4,6 +4,7 @@ export function createInterface(root: HTMLElement) {
     <div class="hud" id="hud" hidden>
       <div class="location">Apeiron <span id="world-name">The first courtyard</span></div>
       <p id="npc-status"></p>
+      <p id="ai-usage-hud" class="ai-usage" aria-label="AI usage">Checking AI usage…</p>
       <p id="npc-subtitle" aria-live="polite"></p>
       <div class="crosshair" aria-hidden="true"></div>
       <p id="prompt" role="status" hidden></p>
@@ -14,12 +15,16 @@ export function createInterface(root: HTMLElement) {
       <div class="chat-heading">Caretaker chat <button id="chat-close" type="button">Return to game</button></div>
       <div id="chat-history" role="log" aria-live="polite"></div>
       <p id="chat-target"></p>
+      <p id="chat-vision" role="status"></p>
+      <details id="chat-preview" hidden><summary>Latest screenshot sent</summary><img id="chat-image" alt="Game view sent to the NPC, with the crosshair marked red" /></details>
       <form id="chat-form">
         <label for="chat-input">Message the caretaker <kbd>T</kbd></label>
         <input id="chat-input" maxlength="400" autocomplete="off" placeholder="What is this? Stand there…" />
         <label class="checkbox"><input id="chat-view" type="checkbox" checked /> Include game screenshot and pointed target</label>
         <button type="submit">Send message</button>
+        <button id="chat-mic" type="button" aria-pressed="false" aria-describedby="mic-status" aria-keyshortcuts="V">Hold to talk</button>
       </form>
+      <p id="mic-status" role="status">Hold V while exploring, or hold this button. Release to send. English speech is recognized locally.</p>
       <div id="voice-status" role="status"></div>
     </section>
     <dialog id="menu" aria-labelledby="menu-title">
@@ -46,9 +51,11 @@ export function createInterface(root: HTMLElement) {
       <button id="playground" class="secondary">Enter original playground</button>
 
       <label class="checkbox"><input id="npc-ai" type="checkbox" /> Use decision model for the caretaker</label>
-      <label class="checkbox"><input id="npc-llm" type="checkbox" /> Gemini conversation and planning</label>
-      <label class="checkbox"><input id="npc-voice" type="checkbox" /> Google AI voice replies</label>
+      <label class="checkbox"><input id="npc-llm" type="checkbox" /> NPC conversation and planning</label>
+      <label class="checkbox"><input id="npc-voice" type="checkbox" /> NPC voice replies</label>
+      <p class="note">Local voice runs on your CPU. Text appears before speech is ready.</p>
       <p id="npc-service" class="note" role="status">Checking decision service…</p>
+      <details><summary>AI model and usage limits</summary><p id="ai-usage-menu" class="ai-usage">Checking AI usage…</p></details>
       <div class="bindings"><p><kbd>W A S D</kbd> Move · <kbd>Mouse</kbd> Look</p>
       <p><kbd>Shift</kbd> Run · <kbd>Space</kbd> Jump · <kbd>E</kbd> Interact</p>
       <p><kbd>Esc</kbd> Pause · <kbd>F3</kbd> Diagnostics</p></div>
@@ -77,9 +84,12 @@ export function createInterface(root: HTMLElement) {
   return {
     canvas: get<HTMLCanvasElement>('viewport'),
     chat:get('chat'),chatHistory:get('chat-history'),chatTarget:get('chat-target'),
+    chatVision:get('chat-vision'),chatPreview:get('chat-preview'),chatImage:get<HTMLImageElement>('chat-image'),
+    chatMic:get<HTMLButtonElement>('chat-mic'),micStatus:get('mic-status'),
     chatForm:get<HTMLFormElement>('chat-form'),chatInput:get<HTMLInputElement>('chat-input'),chatView:get<HTMLInputElement>('chat-view'),chatClose:get<HTMLButtonElement>('chat-close'),voiceStatus:get('voice-status'),
     hud: get('hud'), prompt: get('prompt'), diagnostics: get('diagnostics'),
     npcStatus: get('npc-status'), npcAI: get<HTMLInputElement>('npc-ai'), npcService: get('npc-service'),
+    aiUsageHud:get('ai-usage-hud'),aiUsageMenu:get('ai-usage-menu'),
     npcLLM:get<HTMLInputElement>('npc-llm'),npcVoice:get<HTMLInputElement>('npc-voice'),npcSubtitle:get('npc-subtitle'),
     npcCommand: get<HTMLFormElement>('npc-command'), npcMessage: get<HTMLInputElement>('npc-message'),
     npcSend: get<HTMLButtonElement>('npc-send'), npcFeedback: get('npc-feedback'),

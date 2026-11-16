@@ -17,11 +17,12 @@ test('HTTP adapter keeps credentials server-side, forwards NPC schema, and enfor
   const middleware = createDecisionMiddleware({apiKey:'test-server-key',limit:1,cooldownMs:0,
     fetcher: (async (_url,options) => {
       calls++;
-      assert.equal((options?.headers as Record<string,string>).Authorization,'Bearer test-server-key');
+      assert.equal((options?.headers as Record<string,string>)['x-goog-api-key'],'test-server-key');
+      assert.equal(String(_url),'https://generativelanguage.googleapis.com/v1beta/decisions');
       const body=JSON.parse(options?.body as string);
-      assert.equal(body.model,'vllm-sr/d3-ultra');
+      assert.equal(body.model,'gemini-decision-1');
       assert.ok(body.questions.action.criteria.FOLLOW_PLAYER);
-      assert.equal(body.state.request,'Follow me');
+      assert.equal(JSON.parse(body.input).request,'Follow me');
       return Response.json({answers:{action:{choice:'FOLLOW_PLAYER'},reply:{choice:'FOLLOW'}}});
     }) as typeof fetch});
   const server=createServer((req,res) => {void middleware(req,res,() => {res.writeHead(404);res.end();});});

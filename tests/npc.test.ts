@@ -49,7 +49,7 @@ test('following respects personal space and reset invalidates an in-flight model
   assert.ok(world.npc.position.distanceTo(player) >= 2);
   assert.ok(world.npc.position.distanceTo(player) < 2.3);
   npc.setAI(true);
-  const pending = npc.command('follow me',player);
+  const pending = npc.command('patrol',player);
   npc.reset();
   finish(Response.json({action:'FOLLOW_PLAYER',reply:'FOLLOW',remaining:4}));
   await pending;
@@ -64,9 +64,9 @@ test('model failures visibly fall back; unsupported responses cannot execute act
   const npc=new Caretaker(world.npc,world.npcCollider,world.navigationColliders,world.lamp,
     (async () => Response.json({action:'RUN_SCRIPT',reply:'WELCOME'})) as typeof fetch);
   npc.setAI(true);
-  await npc.command('wait here',new Vector3(0,0,8));
+  await npc.command('patrol',new Vector3(0,0,8));
   assert.equal(npc.aiEnabled,false);
-  assert.equal(npc.action,'WAIT');
+  assert.equal(npc.action,'PATROL');
   assert.match(npc.source,/Local fallback/);
   npc.dispose(); world.dispose();
 });

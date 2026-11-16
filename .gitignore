@@ -5,3 +5,7 @@ artifacts/
 test-results/
 playwright-report/
 *.local
+.local-tts/
+.local-llm/
+.local-stt/
+__pycache__/

@@ -49,6 +49,8 @@ input[type="range"], select { width: 100%; accent-color: #d9c596; }
 #answers button { text-align: left; }
 #leave { width: 100%; }
 #npc-status { position: absolute; left: 28px; top: 80px; max-width: min(440px, 80vw); font-size: 13px; }
+.ai-usage { white-space:pre-line; font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+#ai-usage-hud { position:absolute; right:20px; top:16px; width:min(350px,38vw); margin:0; padding:10px 12px; background:#242423; border:1px solid #51514c; border-radius:6px; color:#e2e0d8; text-shadow:none; }
 #npc-message { width: 100%; padding: 10px; background: #343432; color: inherit; border: 1px solid #62625f; border-radius: 6px; }
 #npc-send { margin-top: 10px; }
 #npc-command label { margin-top: 12px; }
@@ -62,5 +64,11 @@ input[type="range"], select { width: 100%; accent-color: #d9c596; }
 #chat-input {width:100%;padding:9px;background:#343432;color:inherit;border:1px solid #62625f;border-radius:6px;}
 #chat label {font-size:12px;margin:8px 0;}
 #voice-status audio {width:100%;height:32px;margin-top:8px;}
+#chat-image {width:100%;display:block;margin-top:8px;}
+#chat-preview {padding-top:8px;margin-bottom:8px;}
+#chat-vision {font-size:12px;color:#d1d1ca;}
+#mic-status {font-size:12px;color:#d1d1ca;margin:8px 0;}
+#chat-mic {touch-action:none;user-select:none;}
+#chat-mic[aria-pressed="true"] {border-color:#d9c596;background:#454338;}
 [hidden] { display: none !important; }
 @media (max-width: 600px) { .controls { padding: 0 16px; line-height: 2; } .location { top: 16px; left: 16px; } dialog { padding: 24px; } }

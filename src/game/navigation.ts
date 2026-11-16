@@ -5,18 +5,32 @@ import type { Point } from './npc-contract';
 export class Navigation {
   readonly radius = 0.48;
   private readonly edges = new Map<string, Point[]>();
-  constructor(private readonly obstacles: readonly Box3[]) {
-    // Static courtyard connectivity is computed once, rather than on every follow update.
-    for (let x=-19.5;x<=19.5;x+=.5) for (let z=-19.5;z<=19.5;z+=.5) {
-      const p={x,z};
-      if (this.walkable(p)) this.edges.set(`${x},${z}`,[[.5,0],[-.5,0],[0,.5],[0,-.5]]
-        .map(([dx,dz])=>({x:x+dx,z:z+dz})).filter(next=>this.clear(p,next)));
+  private readonly buckets=new Map<string,Box3[]>();
+  constructor(obstacles:readonly Box3[],readonly limit=19.5) {
+    for(const box of obstacles){
+      if(box.max.y<=.05||box.min.y>=1.9)continue;
+      for(let x=Math.floor((box.min.x-this.radius)/4);x<=Math.floor((box.max.x+this.radius)/4);x++)
+        for(let z=Math.floor((box.min.z-this.radius)/4);z<=Math.floor((box.max.z+this.radius)/4);z++){
+          const key=`${x},${z}`;if(!this.buckets.has(key))this.buckets.set(key,[]);this.buckets.get(key)!.push(box);
+        }
     }
   }
   walkable(p: Point) {
-    return Math.abs(p.x) <= 19.5 && Math.abs(p.z) <= 19.5 && !this.obstacles.some(b =>
-      b.max.y > 0.05 && b.min.y < 1.9 && p.x > b.min.x - this.radius && p.x < b.max.x + this.radius &&
-      p.z > b.min.z - this.radius && p.z < b.max.z + this.radius);
+    return Math.abs(p.x)<=this.limit&&Math.abs(p.z)<=this.limit&&!this.buckets.get(`${Math.floor(p.x/4)},${Math.floor(p.z/4)}`)?.some(box=>
+      p.x>box.min.x-this.radius&&p.x<box.max.x+this.radius&&p.z>box.min.z-this.radius&&p.z<box.max.z+this.radius);
+  }
+  private neighbors(p:Point){
+    const key=`${p.x},${p.z}`;let edges=this.edges.get(key);
+    if(!edges){edges=[[.5,0],[-.5,0],[0,.5],[0,-.5]].map(([dx,dz])=>({x:p.x+dx,z:p.z+dz})).filter(next=>this.clear(p,next));this.edges.set(key,edges);}
+    return edges;
+  }
+  approach(start:Point,bounds:{minX:number;maxX:number;minZ:number;maxZ:number}):Point[]{
+    const cx=Math.max(bounds.minX,Math.min(bounds.maxX,start.x)),cz=Math.max(bounds.minZ,Math.min(bounds.maxZ,start.z));
+    const points:Point[]=[];for(const gap of [.9,1.4]){points.push({x:cx,z:bounds.minZ-gap},{x:cx,z:bounds.maxZ+gap},{x:bounds.minX-gap,z:cz},{x:bounds.maxX+gap,z:cz});
+    for(const x of [bounds.minX-gap,(bounds.minX+bounds.maxX)/2,bounds.maxX+gap])for(const z of [bounds.minZ-gap,bounds.maxZ+gap])points.push({x,z});}
+    points.sort((a,b)=>Math.hypot(a.x-start.x,a.z-start.z)-Math.hypot(b.x-start.x,b.z-start.z));
+    for(const point of points){if(!this.walkable(point))continue;const route=this.path(start,point);if(route.length){const end=route[route.length-1];const distance=Math.hypot(Math.max(bounds.minX-end.x,0,end.x-bounds.maxX),Math.max(bounds.minZ-end.z,0,end.z-bounds.maxZ));if(distance<=1.75)return route;}}
+    return [];
   }
   clear(a: Point, b: Point) {
     const steps = Math.max(1, Math.ceil(Math.hypot(b.x-a.x, b.z-a.z) / 0.1));
@@ -50,7 +64,7 @@ export class Navigation {
         while (parent) { route.unshift(parent); parent = previous.get(key(parent)); }
         return route;
       }
-      for (const next of this.edges.get(key(p)) || []) {
+      for (const next of this.neighbors(p)) {
         if (!previous.has(key(next))) { previous.set(key(next),p); queue.push(next); }
       }
     }

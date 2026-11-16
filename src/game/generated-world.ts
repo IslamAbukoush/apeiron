@@ -1,3 +1,4 @@
+import {WorldRegistry,addBench,colorName} from './world-registry';
 import * as THREE from 'three';
 import type { WorldDefinition, PropKind } from './generation';
 import { disposeScene, type Interactable } from './world';
@@ -5,6 +6,7 @@ import { disposeScene, type Interactable } from './world';
 /** Build visuals from saved data; simple collision proxies keep generated scenery playable. */
 export function createGeneratedWorld(definition: WorldDefinition) {
   const { palette, theme, night } = definition;
+  const registry=new WorldRegistry(`${theme}-${definition.seed}`,definition.name,29);
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(palette.sky);
   scene.fog = new THREE.Fog(palette.sky, 30, 90);
@@ -105,6 +107,9 @@ export function createGeneratedWorld(definition: WorldDefinition) {
     group.scale.setScalar(item.scale);
     scene.add(group);
     const bounds = prop(item.kind, group, item.color);
+    const names:Record<PropKind,string>={lollipop:'Lollipop',gumdrop:'Gumdrop',candyTree:'Cotton candy tree',tree:'Tree',mushroom:'Mushroom',cactus:'Cactus',rock:'Rock',crystal:'Crystal'};
+    const name=names[item.kind],color=colorName(item.color);
+    registry.register(group,{id:item.id,name:`${color} ${name.toLowerCase()} ${Number(item.id.split('-').at(-1))+1}`,aliases:[name.toLowerCase(),`${color} ${name.toLowerCase()}`,...(item.kind==='candyTree'?['candy tree','tree']:[])],kind:name.toLowerCase(),color,description:`A ${color} ${name.toLowerCase()} in ${definition.name}.`});
     // Rotated wide shapes use a conservative proxy.
     collider(item.x, item.z, bounds.radius * item.scale, bounds.height * item.scale);
   }
@@ -135,6 +140,9 @@ export function createGeneratedWorld(definition: WorldDefinition) {
     mesh(landmark, new THREE.OctahedronGeometry(2), accent, 0, 3.3, 0).scale.y = 2.6;
     if (theme === 'cosmic') mesh(landmark, new THREE.TorusGeometry(3.2, 0.13, 8, 40), white, 0, 3.8, 0).rotation.x = Math.PI / 3;
   }
+  const landmarkNames={candy:['Giant cupcake','cupcake','big cupcake','giant cup cake','cake'],forest:['Ancient tree','ancient tree','big tree'],desert:['Stepped pyramid','pyramid','big pyramid'],frozen:['Frost spire','spire','ice spire'],volcanic:['Volcanic peak','volcano','peak'],cosmic:['Ringed monolith','monolith','ringed monument']};
+  const [landmarkName,...aliases]=landmarkNames[theme];
+  registry.register(landmark,{id:'landmark',name:landmarkName,aliases,kind:'landmark',color:colorName(palette.accent),description:`The ${landmarkName.toLowerCase()} is the main landmark in ${definition.name}.`},{footprint:new THREE.Box3(new THREE.Vector3(theme==='forest'?-.8:-3.5,0,-15-(theme==='forest'?.8:3.5)),new THREE.Vector3(theme==='forest'?.8:3.5,9,-15+(theme==='forest'?.8:3.5)))});
   collider(0, -15, theme === 'forest' ? 0.8 : 3.5, 9);
 
   const npc = new THREE.Group();
@@ -154,9 +162,12 @@ export function createGeneratedWorld(definition: WorldDefinition) {
   const lamp={get:()=>lanternOn,toggle:()=>{lanternOn=!lanternOn;lampMaterial.emissiveIntensity=lanternOn?2:0;light.intensity=lanternOn?8:0;}};
   const marker = box(3.4, 0, 3, 0.8, 1.4, 0.6, palette.secondary);
   marker.userData.interactable = { id: 'waystone', name: 'World waystone', kind: 'marker' } satisfies Interactable;
+  registry.register(marker,{id:'waystone',name:'World waystone',aliases:['waystone','stone','inscription'],kind:'waystone',description:`The waystone records ${definition.name}. Seed: ${definition.seed}.`,actions:['read']});
+  registry.register(lantern,{id:'lantern',name:'Courtyard lantern',aliases:['lantern','lamp','light'],kind:'lantern',color:'yellow',description:'A lantern on a wooden post.',actions:['toggle']},{state:()=>lamp.get()?'on':'off',interact:()=>{lamp.toggle();return lamp.get()?'The lantern is now lit.':'The lantern is now off.';}});
+  addBench(scene,colliders,registry,palette.trunk);
   // Low surfaces retain jumping practice in every generated map.
-  box(-4, 0, 7, 2, 0.45, 2, palette.secondary);
-  box(-6, 0, 7, 2, 0.9, 2, palette.accent);
+  registry.register(box(-4, 0, 7, 2, 0.45, 2, palette.secondary),{id:'low-platform',name:'Low platform',aliases:['low platform','platform'],kind:'platform',description:'A low jumping platform beside the path.'});
+  registry.register(box(-6, 0, 7, 2, 0.9, 2, palette.accent),{id:'high-platform',name:'High platform',aliases:['high platform','platform'],kind:'platform',description:'A high jumping platform beside the low platform.'});
 
   scene.add(new THREE.HemisphereLight(night ? '#b9c7ff' : '#fff5e7', palette.ground, night ? 1.6 : 2.4));
   const sun = new THREE.DirectionalLight(night ? '#b4c6ff' : '#fff2dc', night ? 1.4 : 3);
@@ -171,5 +182,5 @@ export function createGeneratedWorld(definition: WorldDefinition) {
   debug.visible = false;
   scene.add(debug);
   scene.updateMatrixWorld(true);
-  return { scene, colliders, debug, npc,npcCollider,lamp,navigationColliders:colliders.filter(c=>c!==npcCollider), dispose: () => disposeScene(scene) };
+  return { scene, colliders, debug, npc,npcCollider,lamp,registry,navigationColliders:colliders.filter(c=>c!==npcCollider), dispose: () => disposeScene(scene) };
 }
