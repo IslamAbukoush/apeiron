@@ -1,6 +1,6 @@
 # Apeiron — Project Brief and Agent Context
 
-Last updated: 2026-11-10
+Last updated: 2026-11-11
 
 ## Purpose
 
@@ -244,4 +244,8 @@ Milestone 1 is implemented using TypeScript, Three.js, and Vite: a placeholder c
 
 The client has separate world construction, player physics, interaction, UI, and lifecycle modules. Unit tests cover physics and interaction; a Playwright browser test covers the playable loop. See README.md for commands.
 
-There is no persistence, generation backend, model integration, free-text opening conversation, NPC navigation, or area streaming yet. The caretaker's response buttons are temporary milestone-1 dialogue, not a change to the free-text conversation requirement. Static AABB collisions are a prototype implementation, not the final solution for generated terrain or arbitrary meshes.
+The user subsequently authorized automatic map generation from a free-text world description, with “Candy world” as the concrete example. The client now includes an opening world-description form and local deterministic procedural generation. Six supported themes (candy, forest, desert, frozen, volcanic and cosmic) change geometry, palettes, landmarks and lighting. Supported modifiers include color, nighttime and density. Unrecognized descriptions explicitly fall back to a forest. This keyword planner is not an AI model and does not interpret arbitrary details or negation.
+
+`generation.ts` defines a versioned, serializable map record containing the prompt, seed, palette and stable prop records; `generated-world.ts` renders it with built-in geometry and simple collision proxies. The same description and seed reproduce the same record for the same generator version. The pause menu supports creating a replacement map and disposes the old scene. The caretaker and waystone describe the current map. The original playground remains accessible for engine regression checks.
+
+There is still no persistence, generation backend, model integration, multi-turn opening conversation, NPC navigation, or area streaming. Generated maps reset on reload. This implements an initial local generation slice, not every later milestone. The caretaker's response buttons remain temporary scripted dialogue, not a change to the free-text conversation requirement. Static AABB collisions remain a prototype for flat maps, not arbitrary generated terrain or meshes.

@@ -14,7 +14,7 @@ test('player free-text request reaches model and controls following',async ({pag
   await page.goto('/');
   await expect(page.locator('#npc-service')).toContainText('test model');
   await page.getByLabel('Use decision model for the caretaker').check();
-  await page.getByRole('button',{name:'Enter playground'}).click();
+  await page.getByRole('button',{name:'Enter original playground'}).click();
   await page.keyboard.down('KeyW');
   await expect(page.locator('#prompt')).toContainText('caretaker');
   await page.keyboard.up('KeyW');
@@ -47,7 +47,7 @@ test('model decision moves the caretaker and changes the lantern; pause freezes 
   await page.goto('/');
   await expect(page.locator('#npc-service')).toContainText('test decision model');
   await page.getByLabel('Use decision model for the caretaker').check();
-  await page.getByRole('button',{name:'Enter playground'}).click();
+  await page.getByRole('button',{name:'Enter original playground'}).click();
   await expect(page.locator('#npc-status')).toContainText('Model');
   await expect(page.locator('#npc-status')).toHaveAttribute('data-lantern','true',{timeout:15000});
   await expect(page.locator('#npc-status')).toHaveAttribute('data-visited',/lantern/);
@@ -70,7 +70,7 @@ test('quota failure is visible and stops further model requests',async ({page}) 
   await page.goto('/');
   await expect(page.locator('#npc-service')).toContainText('test model');
   await page.getByLabel('Use decision model for the caretaker').check();
-  await page.getByRole('button',{name:'Enter playground'}).click();
+  await page.getByRole('button',{name:'Enter original playground'}).click();
   await expect(page.locator('#npc-status')).toContainText('Local fallback');
   await expect(page.locator('#npc-status')).toContainText('Trial quota exhausted');
   await page.evaluate(() => document.exitPointerLock());

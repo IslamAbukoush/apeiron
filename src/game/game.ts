@@ -7,6 +7,8 @@ import { Caretaker } from './npc';
 import {pointedTarget,captureView} from './perception';
 import type {ViewContext} from './npc-contract';
 import {GoogleVoice} from '../ui/google-voice';
+import { generateWorld, type WorldDefinition } from './generation';
+import { createGeneratedWorld } from './generated-world';
 
 export function startGame(root: HTMLElement) {
   const ui = createInterface(root);
@@ -18,15 +20,19 @@ export function startGame(root: HTMLElement) {
     ui.error.textContent = 'Unable to start WebGL 2. Try a browser with hardware acceleration enabled.';
     ui.error.hidden = false;
     ui.play.disabled = true;
+    ui.generate.disabled = true;
+    ui.playground.disabled = true;
     return () => {};
   }
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.1;
-  const world = createWorld();
+  let world = createWorld();
+  let definition: WorldDefinition | null = null;
+  let ready = false;
   const player = new PlayerBody();
-  const caretaker = new Caretaker(world.npc,world.npcCollider,world.navigationColliders,world.lamp);
+  let caretaker = new Caretaker(world.npc,world.npcCollider,world.navigationColliders,world.lamp);
   const camera = new THREE.PerspectiveCamera(75, 1, 0.05, 100);
   camera.rotation.order = 'YXZ';
   const keys = new Set<string>();
@@ -118,15 +124,15 @@ export function startGame(root: HTMLElement) {
     ui.hud.hidden = true;
     ui.prompt.hidden = true;
     if (ui.conversation.open) return;
-    if (entered) {
+    if (entered && ready) {
       ui.title.textContent = 'Paused';
       ui.play.textContent = 'Resume exploring';
-      ui.description.textContent = 'Take your time. The courtyard will be here.';
+      ui.description.textContent = `Take your time. ${definition?.name ?? 'The courtyard'} will be here.`;
     }
     if (!ui.menu.open) ui.menu.showModal();
   }
   async function resume() {
-    if (contextLost) return;
+    if (contextLost || !ready) return;
     ui.conversation.close();
     ui.menu.close();
     if(document.activeElement instanceof HTMLElement)document.activeElement.blur();
@@ -151,8 +157,8 @@ export function startGame(root: HTMLElement) {
     if (item.kind === 'npc') {
       ui.speech.textContent = caretaker.speech;
       const replies = [
-        ['Where am I?', 'An old courtyard at the edge of a world still taking shape. For now, these walls are its boundaries.'],
-        ['What can I explore?', 'Follow the paths, walk beneath the arch, and try the low stone platforms. There is a waystone beside the southern path.'],
+        ['Where am I?', definition ? `${definition.name}. Your wish was: “${definition.prompt}”` : 'An old courtyard at the edge of a world still taking shape. For now, these walls are its boundaries.'],
+        ['What can I explore?', definition ? `${definition.summary} Follow the path past me to the landmark, or wander through the groves. The waystone beside the path records your seed.` : 'Follow the paths, walk beneath the arch, and try the low stone platforms. There is a waystone beside the southern path.'],
         ['Who are you?', 'The caretaker. I keep this place until its next story arrives.'],
       ];
       for (const [question, answer] of replies) {
@@ -173,13 +179,92 @@ export function startGame(root: HTMLElement) {
         world.lamp.toggle();
         ui.speech.textContent = world.lamp.get() ? 'You light the courtyard lantern.' : 'You put out the courtyard lantern.';
       } else {
-      ui.speech.textContent = 'The inscription reads: “Every world begins with a place to stand.” The path ends here, for now.';
+      ui.speech.textContent = definition ? `${definition.name}\n${definition.summary}\nWorld seed: ${definition.seed}\nYour wish: ${definition.prompt}` : 'The inscription reads: “Every world begins with a place to stand.” The path ends here, for now.';
       }
     }
     ui.conversation.showModal();
     document.exitPointerLock();
   }
 
+  function activateWorld(next: ReturnType<typeof createWorld>, nextDefinition: WorldDefinition | null) {
+    const previous = world;
+    world = next;
+    definition = nextDefinition;
+    const ai=caretaker.aiEnabled,llm=caretaker.llmEnabled;
+    caretaker.dispose();voice.stop();
+    caretaker=new Caretaker(world.npc,world.npcCollider,world.navigationColliders,world.lamp);
+    caretaker.aiEnabled=ai;caretaker.llmEnabled=llm;
+    if(definition)caretaker.say(`Welcome to ${definition.name}. ${definition.summary}`);
+    view={};ui.chatHistory.replaceChildren();
+    previous.dispose();
+    player.reset(); yaw = 0; pitch = 0; accumulator = 0; target = null;
+    entered = false; ready = true;
+    world.debug.visible = ui.colliders.checked;
+    updateCamera();
+    ui.worldName.textContent = definition?.name ?? 'The first courtyard';
+    ui.title.textContent = definition?.name ?? 'Apeiron';
+    ui.description.textContent = definition ? 'Your world is ready. Enter and find the caretaker along the path.' : 'Explore the first courtyard. Find the caretaker beneath the stone arch.';
+    ui.worldForm.hidden = true;
+    ui.play.hidden = false;
+    ui.play.textContent = definition ? 'Enter world' : 'Enter playground';
+    ui.newWorld.hidden = false;
+    ui.playground.hidden = true;
+  }
+  ui.worldForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (contextLost || ui.generate.disabled) return;
+    ui.error.hidden = true;
+    ui.generate.disabled = true;
+    ui.playground.disabled = true;
+    ui.generate.textContent = 'Generating…';
+    ui.worldForm.setAttribute('aria-busy', 'true');
+    ui.generationStatus.hidden = false;
+    ui.generationStatus.textContent = 'Planning the scenery and building your map…';
+    // Yield a frame so feedback appears before geometry construction.
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    try {
+      if (signal.aborted || contextLost) return;
+      const seed = ui.worldSeed.value.trim() || crypto.randomUUID().slice(0, 8);
+      const nextDefinition = generateWorld(ui.worldPrompt.value, seed);
+      const next = createGeneratedWorld(nextDefinition);
+      activateWorld(next, nextDefinition);
+      ui.generationStatus.textContent = `${nextDefinition.summary}\nSeed: ${nextDefinition.seed}${nextDefinition.fallback ? '\nNo supported theme found; this map uses the forest theme.' : ''}`;
+      ui.play.focus();
+    } catch (error) {
+      ui.error.textContent = error instanceof Error ? error.message : 'Could not build your world. Try another description.';
+      ui.error.hidden = false;
+      ui.generationStatus.hidden = true;
+    } finally {
+      ui.generate.disabled = contextLost;
+      ui.playground.disabled = contextLost;
+      ui.generate.textContent = 'Generate world';
+      ui.worldForm.removeAttribute('aria-busy');
+    }
+  }, { signal });
+  ui.worldForm.querySelectorAll<HTMLButtonElement>('[data-prompt]').forEach(button => {
+    button.addEventListener('click', () => {
+      ui.worldPrompt.value = button.dataset.prompt!;
+      ui.worldPrompt.focus();
+    }, { signal });
+  });
+  ui.newWorld.addEventListener('click', () => {
+    ready = false; entered = false;
+    ui.worldForm.hidden = false;
+    ui.play.hidden = true;
+    ui.newWorld.hidden = true;
+    ui.playground.hidden = false;
+    ui.generationStatus.hidden = true;
+    ui.error.hidden = true;
+    ui.title.textContent = 'Apeiron';
+    ui.description.textContent = 'Every world begins with a wish. What will yours be?';
+    ui.worldPrompt.focus();
+  }, { signal });
+  ui.playground.addEventListener('click', () => {
+    if (contextLost) return;
+    activateWorld(createWorld(), null);
+    ui.generationStatus.hidden = true;
+    void resume();
+  }, { signal });
   ui.play.addEventListener('click', resume, { signal });
   ui.leave.addEventListener('click', resume, { signal });
   ui.menu.addEventListener('cancel', event => { event.preventDefault(); }, { signal });
@@ -202,6 +287,7 @@ export function startGame(root: HTMLElement) {
   }, { signal });
   ui.colliders.addEventListener('change', () => { world.debug.visible = ui.colliders.checked; }, { signal });
   ui.reset.addEventListener('click', () => {
+    voice.stop();
     player.reset(); caretaker.reset(); yaw = 0; pitch = 0; updateCamera();
   }, { signal });
   document.addEventListener('pointerlockchange', () => {
@@ -259,6 +345,7 @@ export function startGame(root: HTMLElement) {
     ui.conversation.close(); showMenu();
     ui.error.textContent = 'Graphics context lost. Reload the page to restart the playground.';
     ui.error.hidden = false; ui.play.disabled = true;
+    ui.generate.disabled = true; ui.playground.disabled = true; ui.newWorld.disabled = true;
   }, { signal });
 
   resize();

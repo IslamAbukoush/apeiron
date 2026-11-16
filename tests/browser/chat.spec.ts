@@ -6,7 +6,7 @@ test('T opens remote chat, sends a marked screenshot and target, and preserves r
   await page.route('**/api/npc/thought/status',r=>r.fulfill({json:{configured:true}}));
   await page.route('**/api/npc/thought',r=>{payload=r.request().postDataJSON();return r.fulfill({json:{speech:'That is the caretaker beneath the arch.',plan:[]}});});
   await page.goto('/');await expect(page.locator('#npc-llm')).toBeChecked();
-  await page.getByRole('button',{name:'Enter playground'}).click();
+  await page.getByRole('button',{name:'Enter original playground'}).click();
   await page.keyboard.press('KeyT');await expect(page.locator('#chat-input')).toBeFocused();
   await expect(page.locator('#menu')).not.toBeVisible();
   await page.locator('#chat-input').fill('What is this?');await page.getByRole('button',{name:'Send message'}).click();

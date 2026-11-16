@@ -7,7 +7,7 @@ test('waystone question keeps its answer and ignores an unsolicited errand',asyn
   await page.route('**/api/npc/decision',r=>{decisions++;return r.fulfill({json:{action:'INSPECT_WAYSTONE',reply:'STONE'}});});
   await page.route('**/api/npc/thought',r=>r.fulfill({json:{speech:'The waystone marks where this courtyard began.',plan:['INSPECT_WAYSTONE']}}));
   await page.goto('/');await expect(page.locator('#npc-llm')).toBeChecked();
-  await page.getByRole('button',{name:'Enter playground'}).click();
+  await page.getByRole('button',{name:'Enter original playground'}).click();
   await page.keyboard.down('KeyW');await expect(page.locator('#prompt')).toContainText('caretaker');await page.keyboard.up('KeyW');
   await page.keyboard.press('KeyE');
   await page.getByLabel('Ask the caretaker to do something').fill('What is the waystone?');
@@ -31,7 +31,7 @@ test('delayed Gemini reply does not freeze play; thoughtful plan supersedes fast
   });
   await page.goto('/');
   await expect(page.locator('#npc-llm')).toBeChecked();
-  await page.getByRole('button',{name:'Enter playground'}).click();
+  await page.getByRole('button',{name:'Enter original playground'}).click();
   await page.keyboard.down('KeyW');await expect(page.locator('#prompt')).toContainText('caretaker');await page.keyboard.up('KeyW');
   await page.keyboard.press('KeyE');
   await page.getByLabel('Ask the caretaker to do something').fill('Show me the stone, then tend the lantern');
