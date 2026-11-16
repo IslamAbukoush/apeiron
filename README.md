@@ -11,7 +11,71 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite, normally http://127.0.0.1:5173. Click **Enter playground** to capture the mouse. A desktop browser with WebGL 2 and a keyboard/mouse is required. Everything in this milestone runs locally; no keys, services, or downloaded game assets are needed.
+Open the local URL printed by Vite, normally http://127.0.0.1:5173. Click **Enter playground** to capture the mouse. A desktop browser with WebGL 2 and a keyboard/mouse is required. Local NPC behavior needs no keys or downloaded assets. The optional decision model uses the AnyRouter setup in `AI-TEST`.
+
+## Decision-driven caretaker
+
+### Hybrid conversation and responsive controls
+
+Enable **Gemini conversation and planning** to get generated dialogue and a
+short sequence of actions. Enable **Use decision model for the caretaker**
+for AnyRouter's faster action choices. Both can run together: the caretaker
+reacts locally immediately, then accepts the decision-model result, and Gemini's
+deliberate plan takes priority once ready. A late fast result cannot overwrite it.
+Try “Introduce yourself, then show me the waystone and tend the lantern.”
+Jump/hop requests produce a short visual hop; movement safety remains local.
+
+Requests resume play immediately. Replies appear as subtitles while you move;
+the world no longer waits in conversation mode for the network. Cached static
+navigation connectivity reduces repeated route-search work. New commands and
+reset invalidate stale responses. Escape still pauses normally.
+
+Google credentials use `GEMINI_API_KEY` in the ignored root `.env.local`.
+`GEMINI_MODEL` defaults to `gemini-2.5-flash`. Gemini keeps the last four
+conversation exchanges in memory and can plan up to three supported actions.
+There is a separate 20-attempt Gemini allowance per server session and a
+25-second upstream timeout. No retries are made. Failed Gemini requests leave
+the current action running and report the error in the HUD. This local cap is
+not a provider billing limit. Optional **Read NPC replies aloud** uses browser
+speech synthesis; availability and voice vary by browser/OS.
+
+The caretaker walks around obstacles, inspects the waystone, tends a working lantern,
+follows the player, guides them to the waystone, and waits on request. Approach and
+press **E** to use quick commands or type a request. Choose **Back to exploring**
+to return from inspection. Walking and automatic model requests stop while paused (an already
+in-flight request can finish); dialogue requests can still be submitted.
+
+To use `AI-TEST`'s `vllm-sr/d3-ultra` model, enable **Use decision model for the
+caretaker** in the start/pause menu. The local Node/Vite middleware automatically
+reads `ANYROUTER_API_KEY` from `AI-TEST/.env.local`, or a root `.env.local` override.
+Keys never go into the browser bundle. No separate Snake server is required;
+`AI-TEST` remains unchanged and can still run independently.
+
+The model receives courtyard positions, the current task, visited landmarks,
+lantern state and the latest player request. It selects an allowed action and an
+authored reply using the same typed Decisions API as the Snake demo. Gemini
+adds generated dialogue and a longer action plan when its checkbox is enabled.
+The game handles navigation and executes interactions only on arrival.
+
+By default, AI is off and there are **five upstream attempts per Vite server
+session**, shared across tabs. Automatic decisions are spaced at least 12 seconds
+after the last response. Failed calls count toward the cap; there are no automatic
+retries. Timeouts, quota errors and invalid answers visibly switch to local
+behavior. Switching the checkbox back on does not replenish the server allowance.
+Restarting Vite/config hot reload resets the local cap, not the provider's quota.
+Only raise `ANYROUTER_NPC_LIMIT` in `.env.local` if your account supports more
+requests; `ANYROUTER_MODEL` optionally overrides the model ID.
+
+The HUD identifies local/model/fallback behavior and reports model latency. **Return
+to spawn** resets the player and caretaker (including pending requests), but keeps
+the server's API allowance and the lantern's state. The model remembers the last
+player request and visited landmarks only until reload/reset.
+
+`npm run preview` also includes the decision endpoint. A static upload of `dist/`
+alone supports local behavior only; live AI requires this Node backend. Keep the
+server bound to localhost: this prototype has no public-server authentication.
+
+See [NPC integration notes and test results](docs/NPC_INTEGRATION.md).
 
 ## Controls
 
@@ -57,9 +121,9 @@ Physics uses metres, a Y-up coordinate system, and a feet-position player state 
 
 ## Scope and limitations
 
-This is milestone 1, not the generation pipeline. Geometry is handmade placeholder content; NPC replies are scripted. There are no model calls, savefiles, world slots, free-text conversations, NPC pathfinding, quests, audio, or area transitions yet. Reloading resets the playground. The future opening conversation still needs free-text input.
+Geometry is handmade placeholder content, not the generation pipeline. NPC navigation, optional decision-model calls, Gemini conversation/plans and browser voice are implemented. There are no savefiles, world slots, quests, recorded character voices, or area transitions yet. Reloading resets the playground.
 
-The simple static colliders support this courtyard, not arbitrary generated meshes, slopes, moving bodies, or complex terrain. Collision representation and navigation must be revisited before importing generated environments. Assets, dialogue, and settings are not persisted. Performance must still be measured on both target laptops; automated browser timing is not a hardware benchmark.
+The simple colliders and ground-plane grid navigation support this courtyard, not arbitrary generated meshes, slopes, or complex terrain. The caretaker's collision box moves with it, but it does not push the player or jump onto platforms. Collision representation and navigation must be revisited before importing generated environments. Assets, dialogue, and settings are not persisted. Performance must still be measured on both target laptops; automated browser timing is not a hardware benchmark.
 
 CodeGraph was initialized with user approval. Run `codegraph index` to rebuild the local index when needed; `.codegraph/` is not committed. Prefer CodeGraph for structural exploration as described in the project brief.
 

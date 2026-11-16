@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="A minimal Snake test controlled by AnyRouter's d3-ultra decision model." />
+    <title>AnyRouter Snake Test</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <h1>Snake decision test</h1>
+          <p>The model receives coordinates and chooses one move per turn.</p>
+        </div>
+        <button id="start" type="button">Start AI run</button>
+      </header>
+
+      <section class="game-layout" aria-label="Snake game and decision details">
+        <div class="board-wrap">
+          <canvas width="600" height="600" aria-label="Snake game board"></canvas>
+        </div>
+
+        <aside>
+          <div class="status-line">
+            <span>Status</span>
+            <strong id="status" data-tone="idle">Ready</strong>
+          </div>
+          <dl class="scoreboard">
+            <div><dt>Food</dt><dd id="score">0</dd></div>
+            <div><dt>Moves</dt><dd id="moves">0</dd></div>
+          </dl>
+
+          <section class="decision-details">
+            <h2>Latest decision</h2>
+            <dl>
+              <div><dt>Model</dt><dd id="model">Waiting to start</dd></div>
+              <div><dt>Confidence</dt><dd id="confidence">—</dd></div>
+              <div><dt>Latency</dt><dd id="latency">—</dd></div>
+              <div><dt>API cost</dt><dd id="cost">$0.0000</dd></div>
+            </dl>
+            <ul id="probabilities" aria-label="Move probabilities"></ul>
+          </section>
+
+          <p class="note">One live Decisions API request is made per move. Free-plan accounts have a five-request trial; Go and higher plans remove that quota.</p>
+        </aside>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
+

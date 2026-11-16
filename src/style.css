@@ -38,5 +38,19 @@ input[type="range"], select { width: 100%; accent-color: #d9c596; }
 #answers { display: grid; gap: 8px; margin: 24px 0 16px; }
 #answers button { text-align: left; }
 #leave { width: 100%; }
+#npc-status { position: absolute; left: 28px; top: 80px; max-width: min(440px, 80vw); font-size: 13px; }
+#npc-message { width: 100%; padding: 10px; background: #343432; color: inherit; border: 1px solid #62625f; border-radius: 6px; }
+#npc-send { margin-top: 10px; }
+#npc-command label { margin-top: 12px; }
+#npc-subtitle { position:absolute; bottom:70px; left:20%; width:60%; text-align:center; font-size:16px; }
+#chat {position:fixed;bottom:65px;right:20px;width:min(350px,calc(100vw - 40px));padding:14px;background:#242423;border:1px solid #62625f;border-radius:6px;font-size:13px;}
+.chat-heading {display:flex;justify-content:space-between;align-items:center;gap:8px;}
+#chat button {padding:6px 10px;font-size:12px;}
+#chat-history {max-height:180px;overflow-y:auto;margin-top:10px;}
+#chat-history p {margin:6px 0;white-space:pre-wrap;overflow-wrap:anywhere;}
+#chat-target,#voice-status {font-size:12px;color:#d1d1ca;}
+#chat-input {width:100%;padding:9px;background:#343432;color:inherit;border:1px solid #62625f;border-radius:6px;}
+#chat label {font-size:12px;margin:8px 0;}
+#voice-status audio {width:100%;height:32px;margin-top:8px;}
 [hidden] { display: none !important; }
 @media (max-width: 600px) { .controls { padding: 0 16px; line-height: 2; } .location { top: 16px; left: 16px; } dialog { padding: 24px; } }

@@ -3,6 +3,7 @@ import { test, expect } from '@playwright/test';
 test('enter, move, interact, pause, change settings and reset', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
+  await page.route('**/api/npc/thought/status',route=>route.fulfill({json:{configured:false}}));
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Enter playground' })).toBeEnabled();
   await page.screenshot({ path: 'artifacts/playground-menu.png' });

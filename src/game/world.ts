@@ -87,10 +87,21 @@ export function createWorld() {
   }
   npc.traverse(object => { if (object instanceof THREE.Mesh) object.castShadow = true; });
   scene.add(npc);
-  colliders.push(new THREE.Box3(new THREE.Vector3(-0.4, 0, -2.4), new THREE.Vector3(0.4, 1.9, -1.6)));
+  const npcCollider = new THREE.Box3(new THREE.Vector3(-0.4, 0, -2.4), new THREE.Vector3(0.4, 1.9, -1.6));
+  colliders.push(npcCollider);
 
   const marker = box(3.4, 0, 3, 0.8, 1.4, 0.6, materials.darkStone);
   marker.userData.interactable = { id: 'waystone', name: 'Weathered waystone', kind: 'marker' } satisfies Interactable;
+
+  const lampMaterial = new THREE.MeshStandardMaterial({color:'#e8ce94',emissive:'#ffb347',emissiveIntensity:0});
+  box(-3.4,0,3,.25,1.3,.25,materials.wood);
+  const lantern = box(-3.4,1.3,3,.4,.5,.4,lampMaterial,false);
+  lantern.userData.interactable = {id:'lantern',name:'Courtyard lantern',kind:'marker'} satisfies Interactable;
+  const lampLight = new THREE.PointLight('#ffbb66',0,6); lampLight.position.set(-3.4,1.65,3); scene.add(lampLight);
+  let lanternOn = false;
+  const lamp = { get: () => lanternOn, toggle: () => {
+    lanternOn = !lanternOn; lampMaterial.emissiveIntensity = lanternOn ? 2 : 0; lampLight.intensity = lanternOn ? 8 : 0;
+  } };
 
   scene.add(new THREE.HemisphereLight('#fff2d5', '#65724b', 2));
   const sun = new THREE.DirectionalLight('#ffe1ae', 3);
@@ -108,7 +119,8 @@ export function createWorld() {
   scene.add(debug);
 
   return {
-    scene, colliders, debug,
+    scene, colliders, debug, npc, npcCollider, lamp,
+    navigationColliders: colliders.filter(c => c !== npcCollider),
     dispose() {
       const geometries = new Set<THREE.BufferGeometry>();
       const disposableMaterials = new Set<THREE.Material>();
