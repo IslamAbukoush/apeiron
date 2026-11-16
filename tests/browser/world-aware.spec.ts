@@ -15,9 +15,9 @@ test('bench commands work in the courtyard; switching worlds exposes the cupcake
   await page.screenshot({path:'artifacts/world-aware-cupcake.png'});
   await page.evaluate(()=>document.exitPointerLock());await page.getByRole('button',{name:'Create another world'}).click();
   await page.getByLabel('Describe your world').fill('A frozen world');await page.getByRole('button',{name:'Generate world',exact:true}).click();await page.getByRole('button',{name:'Enter world',exact:true}).click();await expect(page.locator('#hud')).toBeVisible();
-  await send('Show me the cupcake');await expect(page.locator('#chat-history')).toContainText('cannot find that object');await expect(page.locator('#npc-status')).toHaveAttribute('data-action','WAIT');
+  await send('Show me the cupcake');await expect(page.locator('#npc-status')).toContainText('cannot find that object');await expect(page.locator('#npc-status')).toHaveAttribute('data-action','WAIT');
   await send('Inspect the frost spire');await expect(page.locator('#npc-status')).toHaveAttribute('data-target','landmark');
-  await expect(page.locator('#chat-history')).toContainText('main landmark in Frostglass Reach',{timeout:12000});
+  await expect(page.locator('#npc-status')).toContainText('Arrived at Frost spire',{timeout:12000});await expect(page.locator('#npc-subtitle')).toHaveText('');
 });
 
 test('the planner gets the current map and can return a generic object action for unfamiliar wording',async({page})=>{

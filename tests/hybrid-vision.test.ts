@@ -29,13 +29,14 @@ test('hybrid sends only a local observation to Groq and skips vision for ordinar
     apiCalls++;const body=JSON.parse(init!.body as string),serialized=JSON.stringify(body);
     assert.doesNotMatch(serialized,/image_url|base64|\/9j\/2Q==/);
     assert.match(serialized,apiCalls===1?/A red bench is on the right/:/Not requested for this turn/);
+    if(body.response_format)return Response.json({choices:[{message:{content:JSON.stringify({speech:'Right behind you.',plan:['FOLLOW_PLAYER']})}}]});
     return new Response('data: '+JSON.stringify({choices:[{delta:{content:'There is a red bench on the right.'}}],usage:{total_tokens:700}})+'\n\ndata: [DONE]\n\n');
   }) as typeof fetch});
   await serve(middleware,async url=>{
     const send=(request:string)=>fetch(url+'/api/npc/thought',{method:'POST',body:JSON.stringify({...state,request})});
     const r=await send(state.request);assert.equal(r.headers.get('X-NPC-Vision-Source'),'local');const reply=await r.json();assert.equal(reply.perception.used,true);assert.match(reply.perception.description,/red bench/);
     const textOnly=await(await send('Tell me about yourself')).json();assert.equal(textOnly.perception.used,false);assert.equal(visionCalls,1);
-    await send('Follow me');assert.equal(apiCalls,2);assert.equal(visionCalls,1);
+    await send('Follow me');assert.equal(apiCalls,3);assert.equal(visionCalls,1);
     const status=await(await fetch(url+'/api/npc/thought/status')).json();assert.equal(status.mode,'hybrid');assert.equal(status.visionModel,vision.model);
   });
 });

@@ -52,6 +52,9 @@ export function createInterface(root: HTMLElement) {
 
       <label class="checkbox"><input id="npc-ai" type="checkbox" /> Use decision model for the caretaker</label>
       <label class="checkbox"><input id="npc-llm" type="checkbox" /> NPC conversation and planning</label>
+      <label for="npc-provider">Conversation and planning model</label>
+      <select id="npc-provider"><option value="hybrid">Hybrid: local vision + Groq</option><option value="local">Fully local: vision + conversation + planning</option></select>
+      <p class="note">The decision model above is independent. Voice and microphone recognition run locally.</p>
       <label class="checkbox"><input id="npc-voice" type="checkbox" /> NPC voice replies</label>
       <p class="note">Local voice runs on your CPU. Text appears before speech is ready.</p>
       <p id="npc-service" class="note" role="status">Checking decision service…</p>
@@ -68,6 +71,7 @@ export function createInterface(root: HTMLElement) {
         <button id="reset">Return to spawn</button>
       </details>
       <p class="note">Desktop keyboard and mouse. Worlds and progress reset on reload.</p>
+      <details><summary>Character credit</summary><p class="note">“Monk Character” by <a href="https://sketchfab.com/Inuciian" target="_blank" rel="noreferrer">Inuciian</a>, <a href="https://sketchfab.com/3d-models/monk-character-8cacbd85a5b84f59a8c9000d7a6dcca2" target="_blank" rel="noreferrer">original model</a>, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a>. Adapted with procedural animation.</p></details>
       <p id="error" role="alert" hidden></p>
     </dialog>
     <dialog id="conversation" aria-labelledby="speaker">
@@ -91,6 +95,7 @@ export function createInterface(root: HTMLElement) {
     npcStatus: get('npc-status'), npcAI: get<HTMLInputElement>('npc-ai'), npcService: get('npc-service'),
     aiUsageHud:get('ai-usage-hud'),aiUsageMenu:get('ai-usage-menu'),
     npcLLM:get<HTMLInputElement>('npc-llm'),npcVoice:get<HTMLInputElement>('npc-voice'),npcSubtitle:get('npc-subtitle'),
+    npcProvider:get<HTMLSelectElement>('npc-provider'),
     npcCommand: get<HTMLFormElement>('npc-command'), npcMessage: get<HTMLInputElement>('npc-message'),
     npcSend: get<HTMLButtonElement>('npc-send'), npcFeedback: get('npc-feedback'),
     menu: get<HTMLDialogElement>('menu'), title: get('menu-title'), description: get('menu-description'),

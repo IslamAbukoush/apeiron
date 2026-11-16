@@ -64,11 +64,11 @@ test('direct follow commands exclude old errands from history and constrain the 
     const body=JSON.parse(init!.body as string);
     assert.deepEqual(body.format.properties.plan.items.enum,['FOLLOW_PLAYER']);
     assert.equal(body.messages.length,2);assert.doesNotMatch(JSON.stringify(body.messages),/Old errand/);
-    return Response.json({message:{content:JSON.stringify({speech:'I will lead you to the waystone.',plan:['GUIDE_PLAYER']})}});
+    return Response.json({message:{content:JSON.stringify({speech:'Keep going; I am right behind you.',plan:['FOLLOW_PLAYER']})}});
   }) as typeof fetch});
   await serve(middleware,async url=>{
     const r=await fetch(url+'/api/npc/thought',{method:'POST',body:JSON.stringify({...state,request:'Come here',history:['Caretaker: Old errand: go to the waystone.']})});
-    assert.equal(r.status,200);const reply=await r.json();assert.deepEqual(reply.plan,['FOLLOW_PLAYER']);assert.doesNotMatch(reply.speech,/waystone/);
+    assert.equal(r.status,200);const reply=await r.json();assert.deepEqual(reply.plan,['FOLLOW_PLAYER']);assert.equal(reply.speech,'Keep going; I am right behind you.');
   });
 });
 

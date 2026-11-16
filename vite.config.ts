@@ -7,18 +7,22 @@ import { LocalLlm,LOCAL_MODEL } from './server/local-llm.ts';
 import { createLocalThoughtMiddleware } from './server/local-thought.ts';
 import {createGroqThoughtMiddleware} from './server/groq-thought.ts';
 import {LocalVision} from './server/local-vision.ts';
+import {createThoughtRouter} from './server/thought-router.ts';
 import { LocalStt } from './server/local-stt.ts';
 import { createSttMiddleware } from './server/stt.ts';
 
 export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), ['GEMINI_','GROQ_','NPC_','PARADEE_']), ...process.env };
   const local=env.NPC_VOICE_PROVIDER==='gemini'?undefined:new LocalTts(process.cwd(),env.PARADEE_VOICE||'am_puck');
-  const llm=['gemini','groq'].includes(env.NPC_LLM_PROVIDER||'')?undefined:new LocalLlm();
+  const llm=new LocalLlm();
   const recognizer=new LocalStt();
   const stt=createSttMiddleware(recognizer);
   const model=env.NPC_LOCAL_MODEL||LOCAL_MODEL;
-  const vision=env.NPC_LLM_PROVIDER==='hybrid'?new LocalVision({model,start:()=>llm!.start()}):undefined;
-  const thought = ['groq','hybrid'].includes(env.NPC_LLM_PROVIDER||'')?createGroqThoughtMiddleware({apiKey:env.GROQ_API_KEY,model:env.GROQ_MODEL,vision}):llm?createLocalThoughtMiddleware({model,start:()=>llm.start(),status:()=>llm.status(model)}):createThoughtMiddleware({apiKey:env.GEMINI_API_KEY,model:env.GEMINI_MODEL,textModel:env.GEMINI_TEXT_MODEL,limit:Number(env.GEMINI_SESSION_LIMIT)||undefined,localVoice:!!local});
+  const vision=new LocalVision({model,start:()=>llm.start()});
+  const localThought=createLocalThoughtMiddleware({model,start:()=>llm.start(),status:()=>llm.status(model)});
+  const hybridThought=createGroqThoughtMiddleware({apiKey:env.GROQ_API_KEY,model:env.GROQ_MODEL,vision});
+  const defaultThought=env.NPC_LLM_PROVIDER==='hybrid'?hybridThought:env.NPC_LLM_PROVIDER==='groq'?createGroqThoughtMiddleware({apiKey:env.GROQ_API_KEY,model:env.GROQ_MODEL}):env.NPC_LLM_PROVIDER==='gemini'?createThoughtMiddleware({apiKey:env.GEMINI_API_KEY,model:env.GEMINI_MODEL,textModel:env.GEMINI_TEXT_MODEL,limit:Number(env.GEMINI_SESSION_LIMIT)||undefined,localVoice:!!local}):localThought;
+  const thought=createThoughtRouter({default:defaultThought,local:localThought,hybrid:hybridThought});
   const tts=createTtsMiddleware({apiKey:env.GEMINI_API_KEY,model:env.GEMINI_TTS_MODEL,local});
   const middleware = createDecisionMiddleware({ apiKey: env.GEMINI_API_KEY,
     model: env.GEMINI_DECISION_MODEL, limit: Number(env.GEMINI_DECISION_LIMIT) || undefined });

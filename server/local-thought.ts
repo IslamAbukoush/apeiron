@@ -1,6 +1,6 @@
 import {findObjects,resolveObjectRequest} from '../src/game/world-contract.ts';
 import type {IncomingMessage,ServerResponse} from 'node:http';
-import {ACTIONS,REPLIES,canPlanActions,playerDirective,planStepSchema} from '../src/game/npc-contract.ts';
+import {ACTIONS,canPlanActions,playerDirective,planStepSchema} from '../src/game/npc-contract.ts';
 import {validateState} from './decision.ts';
 import {validateView} from './vision.ts';
 import {caretakerInstruction} from './npc-instructions.ts';
@@ -19,10 +19,10 @@ export function createLocalThoughtMiddleware(options:{model?:string;baseUrl?:str
     if(req.url!=='/api/npc/thought')return next();
     if(req.method!=='POST')return send(res,405,{error:'POST required'});
     if(req.headers.origin && ![`http://${req.headers.host}`,`https://${req.headers.host}`].includes(req.headers.origin))return send(res,403,{error:'Origin not allowed'});
-    let state,view,history:string[],deliberate=false;
+    let state,view,history:string[],deliberate=false,actionResult=false;
     try{
       let body='';for await(const chunk of req){body+=chunk;if(body.length>1100000)throw Error();}
-      const input=JSON.parse(body);state=validateState(input);view=validateView(input.view,state.world?.limit||25);deliberate=input.deliberate===true;
+      const input=JSON.parse(body);state=validateState(input);view=validateView(input.view,state.world?.limit||25);deliberate=input.deliberate===true;actionResult=input.event==='action_result';
       history=Array.isArray(input.history)?input.history.slice(-6).map((turn:unknown)=>String(turn).slice(0,600)):[];
     }catch{return send(res,400,{error:'Invalid courtyard state'});}
     // New player requests supersede cancelled/stale turns instead of failing with busy/429.
@@ -35,22 +35,20 @@ export function createLocalThoughtMiddleware(options:{model?:string;baseUrl?:str
     res.setHeader('X-NPC-Provider',provider);res.setHeader('X-NPC-Audio','none');
     try{
       await options.start?.();if(controller.signal.aborted)throw Error('Cancelled');
-      const action=deliberate||canPlanActions(state.request);
-      const directive=deliberate?undefined:playerDirective(state.request);
-      if(provider==='groq'&&directive)return send(res,200,{speech:directive==='WAIT'?REPLIES.WAIT:REPLIES.FOLLOW,plan:[directive],model,provider,latencyMs:0,usage:options.usage?.()});
+      const action=!actionResult&&(deliberate||canPlanActions(state.request));
+      const directive=deliberate||actionResult?undefined:playerDirective(state.request);
       const world=state.world;
       const resolved=world&&action?resolveObjectRequest(state.request,world,state.player,view.target):undefined;
-      if(resolved?.error){return send(res,200,{speech:resolved.error,plan:[],model,provider,worldId:world!.id,latencyMs:0,usage:options.usage?.()});}
       const nearby=world?[...world.objects].sort((a,b)=>Math.hypot(a.position.x-state.player.x,a.position.z-state.player.z)-Math.hypot(b.position.x-state.player.x,b.position.z-state.player.z)):[];
       const priority=world?[...findObjects(state.request,world.objects,state.player),...world.objects.filter(object=>object.id===view.target?.objectId||['landmark','bench','lantern','waystone'].includes(object.id)),...nearby]:[];
       const objects=[...new Map(priority.map(object=>[object.id,object])).values()].slice(0,options.compactContext&&!action?4:12);
-      const worldContext=world?{id:world.id,name:world.name,objects:objects.map(({id,name,kind,color,position,actions,state,description})=>({id,name,kind,color,position,actions,state,description})),resolvedRequest:resolved?.step}:undefined;
+      const worldContext=world?{id:world.id,name:world.name,objects:objects.map(({id,name,kind,color,position,actions,state,description})=>({id,name,kind,color,position,actions,state,description})),resolvedRequest:resolved?.step,resolutionIssue:resolved?.error}:undefined;
       const format={...schema,properties:{...schema.properties,plan:{...schema.properties.plan,items:directive?{type:'string',enum:[directive]}:planStepSchema(objects.map(object=>object.id))}}};
-      const objectInstructions=world?' This is '+world.name+'. Use the supplied world objects and their current IDs. Plan object steps as {"action":"GUIDE_TO_OBJECT","targetId":"id"} to show a place, GO_TO_OBJECT to walk there, INSPECT_OBJECT to examine, or INTERACT_OBJECT with interaction read/toggle/sit only if supported. Honor resolvedRequest when present. Speak naturally; do not recite coordinates or object IDs. For guiding, invite the player to follow; do not claim arrival before reaching the object. Never substitute the waystone for an unknown object. If the target is ambiguous or absent, ask or explain and return an empty plan.':'';
+      const objectInstructions=world?' Use the retrieved world objects and their current IDs. Plan object steps as {"action":"GUIDE_TO_OBJECT","targetId":"id"} to show a place, GO_TO_OBJECT to walk there, INSPECT_OBJECT to examine, or INTERACT_OBJECT with interaction read/toggle/sit/ring/water/open only if supported. Honor resolvedRequest when present. Speak naturally; do not recite coordinates or object IDs. For guiding, invite the player to follow; do not claim arrival before reaching the object. Never substitute the waystone for an unknown object. If the target is ambiguous or absent, ask or explain and return an empty plan.':'';
 
-      const messages=[{role:'system',content:caretakerInstruction(state.request,deliberate)+objectInstructions+(directive?' The player has explicitly requested '+directive+'. Acknowledge that request only; do not offer to lead them anywhere or resume an earlier task.':'')+(view.image?' A screenshot is attached to this turn.':' No screenshot is attached to this turn. Do not invent visible objects or describe a view.')+(action?' Return JSON with speech and plan. Follow the player request, not the current task. Allowed actions: '+JSON.stringify(ACTIONS):' Reply in one short sentence of plain dialogue only; do not output JSON or action names.')},
+      const messages=[{role:'system',content:caretakerInstruction(state.request,deliberate,actionResult)+objectInstructions+(resolved?.error?' The engine could not resolve this request. Explain resolutionIssue naturally and return an empty plan.':'')+(directive?' The engine has resolved a direct instruction in retrieved context. Acknowledge it in your own words only; do not offer to lead them anywhere or resume an earlier task.':'')+(view.image?' A screenshot is attached to this turn.':' No screenshot is attached to this turn. Do not invent visible objects or describe a view.')+(action?' Return JSON with speech and plan. Follow the player request, not the current task. Allowed actions: '+JSON.stringify(ACTIONS):' Reply in brief natural dialogue only; do not output JSON or action names.')},
         ...(directive||deliberate?[]:history).map(turn=>({role:turn.startsWith('Player:')?'user':'assistant',content:turn.replace(/^(Player|Caretaker):\s*/, '')})),
-        {role:'user',content:'Game context: '+JSON.stringify({currentTask:state.npc.action,npc:state.npc,player:state.player,lanternOn:state.lanternOn,target:view.target,world:worldContext})+'\nPlayer request: '+state.request,...(view.image?{images:[view.image.split(',')[1]]}:{})}];
+        {role:'user',content:'Game context: '+JSON.stringify({directive,currentTask:state.npc.action,npc:state.npc,player:state.player,lanternOn:state.lanternOn,target:view.target,perspective:view.perspective,world:worldContext})+'\nPlayer request: '+state.request,...(view.image?{images:[view.image.split(',')[1]]}:{})}];
       const response=await fetcher(base+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,
         body:JSON.stringify({model,messages,think:false,stream:!action,keep_alive:'10m',...(action?{format}:{}),options:{num_ctx:4096,num_batch:128,num_predict:180,temperature:0.3}})});
       if(!response.ok){
@@ -66,7 +64,8 @@ export function createLocalThoughtMiddleware(options:{model?:string;baseUrl?:str
         reply=parseThought(JSON.parse((await response.json()).message.content));
         for(const step of reply.plan)if(typeof step!=='string'&&(!objects.some(object=>object.id===step.targetId)||step.action==='INTERACT_OBJECT'&&!objects.find(object=>object.id===step.targetId)!.actions.includes(step.interaction!)))throw Error('Invalid world target');
         if(resolved?.step)reply.plan=[resolved.step];
-        if(directive){reply.plan=[directive];reply.speech=directive==='WAIT'?REPLIES.WAIT:REPLIES.FOLLOW;}
+        if(directive){if(reply.plan.some(step=>step!==directive))throw Error('Conflicting direct command');reply.plan=[directive];}
+        if(resolved?.error)reply.plan=[];
       }
       else{
         const reader=response.body!.getReader(),decoder=new TextDecoder();let pending='',speech='',completed=false;

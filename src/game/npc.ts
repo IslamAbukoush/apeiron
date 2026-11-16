@@ -1,6 +1,8 @@
-import {resolveObjectRequest,type ObjectStep} from './world-contract';
+import {findObjects,resolveObjectRequest,type ObjectStep} from './world-contract';
+import {caretakerAvatar} from './npc-avatar';
+import {isVisualRequest} from './visual-intent';
 import type {WorldRegistry} from './world-registry';
-import { Box3, Group, Vector3 } from 'three';
+import { Box3, Group, Vector3,Ray } from 'three';
 import { Navigation } from './navigation';
 import { ACTIONS, REPLIES, isActionRequest, canPlanActions, isAutonomyRequest, playerDirective, type ActionReceipt, type Decision, type DecisionState, parsePlan, type NpcStep, type NpcAction, type Point, type ViewContext } from './npc-contract';
 
@@ -24,6 +26,7 @@ export class Caretaker {
   busy = false;
   thinking = false;
   llmEnabled = false;
+  llmProvider:'local'|'hybrid'='hybrid';
   autonomyInterval=12;
   thoughtStatus = '';
   visionStatus = '';
@@ -33,6 +36,11 @@ export class Caretaker {
   replyStreamed=false;
   onAudioChunk?:(pcm:string)=>void;
   onSpeechChunk?:(text:string)=>void;
+  onLookReady?:(focus:Vector3)=>ViewContext;
+  private lookFocus=new Vector3();
+  private lookTarget?:ViewContext['target'];
+  private look?:{focus:Vector3;bounds?:{minX:number;maxX:number;minZ:number;maxZ:number};resolve:(ready:boolean)=>void;remaining:number;settle:number};
+  private readonly sightObstacles:readonly Box3[];
   private history: string[] = [];
   private plan: NpcStep[] = [];
   private thoughtController?: AbortController;
@@ -44,7 +52,10 @@ export class Caretaker {
   private view: ViewContext = {};
   source = 'Local behavior';
   activity = 'Watching the courtyard';
-  speech: string = REPLIES.WELCOME;
+  speech = '';
+  private resolutionError?:string;
+  private feedbackPending=false;
+  private lastRequest='';
   readonly visited = new Set<string>();
   private route: Point[] = [];
   private destination = 'arch';
@@ -71,6 +82,7 @@ export class Caretaker {
     private readonly fetcher: typeof fetch = (input,init) => globalThis.fetch(input,init),
     readonly registry?:WorldRegistry) {
     this.navigation = new Navigation(obstacles,registry?.limit);
+    this.sightObstacles=obstacles;
     this.restPose=mesh.children.map(child=>({position:child.position.clone(),rotation:new Vector3(child.rotation.x,child.rotation.y,child.rotation.z)}));
     this.syncCollider();
   }
@@ -82,9 +94,44 @@ export class Caretaker {
     this.cancel(); this.aiEnabled = enabled; this.decisionClock = 0;
     this.source = enabled ? 'Model enabled' : 'Local behavior';
   }
-  private cancel() { this.epoch++; this.pending?.abort(); this.thoughtController?.abort(); this.busy = false; this.thinking=false;this.replyStreamed=false; }
+  setLlmProvider(provider:'local'|'hybrid'){this.cancel();this.llmProvider=provider;this.thoughtStatus='';this.source=provider==='local'?'Local LLM selected':'Hybrid LLM selected';}
+  private cancel() { this.epoch++;if(this.look){this.route=[];this.complete=true;this.action='WAIT';this.activeObject=undefined;}this.endLook(false); this.pending?.abort(); this.thoughtController?.abort(); this.busy = false; this.thinking=false;this.replyStreamed=false; }
+  private endLook(ready:boolean){const look=this.look;this.look=undefined;if(look)look.resolve(ready);}
+  private canSee(focus:Vector3,bounds?:{minX:number;maxX:number;minZ:number;maxZ:number}){
+    const eye=this.mesh.position.clone();eye.y+=1.55;const distance=eye.distanceTo(focus),ray=new Ray(eye,focus.clone().sub(eye).normalize());
+    return !this.sightObstacles.some(box=>{
+      if(bounds&&box.min.x>=bounds.minX-.1&&box.max.x<=bounds.maxX+.1&&box.min.z>=bounds.minZ-.1&&box.max.z<=bounds.maxZ+.1)return false;
+      const hit=ray.intersectBox(box,new Vector3());return !!hit&&eye.distanceTo(hit)<distance-.25;
+    });
+  }
+  private lookAtTarget(player:Point):Promise<boolean>{
+    const target=this.view.target,named=this.registry?findObjects(this.lastRequest,this.registry.snapshot().objects,player):[];
+    const object=named.length===1&&!/\b(this|that)\b/i.test(this.lastRequest)?named[0]:target?.objectId?this.registry?.get(target.objectId):undefined;
+    const focus=object?this.registry!.focus(object.id)!:new Vector3(target?.x??player.x,target?.y??1.3,target?.z??player.z);
+    this.lookTarget=object?{...object.position,y:focus.y,name:object.name,ground:false,objectId:object.id}:target;
+    // Looking at the caretaker is a face-to-face question, so join the player instead.
+    if(!object&&target?.name==='The caretaker')focus.set(player.x,1.55,player.z);
+    const observer=this.view.observer,sceneQuestion=!object&&observer&&/\b(see|surroundings|scene|around)\b/i.test(this.lastRequest);
+    if(sceneQuestion)focus.set(observer.x+observer.dx*6,Math.max(.3,Math.min(3,observer.y+observer.dy*6)),observer.z+observer.dz*6);
+    const anchor=sceneQuestion?{x:observer.x,z:observer.z}:focus;
+    const bounds=object?.bounds;
+    const promise=new Promise<boolean>(resolve=>{this.look={focus,bounds,resolve,remaining:60,settle:.35};});
+    this.thinking=true;this.thoughtStatus='Approaching to look';
+    if(bounds)this.applyStep({action:'GO_TO_OBJECT',targetId:object!.id},player);
+    else{
+      this.stand();this.activeObject=undefined;this.action='MOVE_TO_TARGET';this.complete=false;
+      this.record('MOVE_TO_TARGET','running','Approaching a vantage point for the requested view.');
+      this.route=this.navigation.approach(this.mesh.position,{minX:anchor.x-.2,maxX:anchor.x+.2,minZ:anchor.z-.2,maxZ:anchor.z+.2});
+      if(!this.route.length){this.action='WAIT';this.complete=true;this.record('MOVE_TO_TARGET','blocked','No reachable vantage point for the requested view.');}
+    }
+    this.activity=this.execution?.status==='blocked'?this.execution.detail:'Walking over to look at the pointed place';
+    if(this.execution?.status==='blocked')this.endLook(false);
+    return promise;
+  }
   async command(request: string, player: Point, view: ViewContext = {}) {
     this.cancel(); this.plan=[]; this.planned=false;this.objectIntent=undefined;this.objectPending=false;this.immediateJump=false;
+    this.resolutionError=undefined;this.feedbackPending=false;this.lastRequest=request;
+    this.speech='';
     this.view=view;
     this.visionStatus=this.llmEnabled?(view.image?'Screenshot ready to send':'Text only ? no screenshot attached'):'Enable NPC conversation to use vision';
     const actionRequested=isActionRequest(request);
@@ -92,31 +139,34 @@ export class Caretaker {
     // A conversation also holds position; background decisions must not interrupt it.
     this.playerTask=!isAutonomyRequest(request);
     const resolution=this.registry&&actionRequested?resolveObjectRequest(request,this.registry.snapshot(),player,view.target):undefined;
-    if(resolution?.error){this.apply({action:'WAIT',reply:'WAIT'},player);this.say(resolution.error);return;}
+    if(resolution?.error){this.apply({action:'WAIT',reply:'WAIT'},player);this.resolutionError=resolution.error;this.record('WAIT','blocked',resolution.error);this.activity=resolution.error;this.feedbackPending=false;}
     this.objectIntent=resolution?.step;
-    this.objectPending=!!this.registry&&actionRequested&&/\b(show|guide|lead|take|inspect|examine|visit|read|sit|toggle|tend|light|switch|turn|walk|go|move|stand)\b/i.test(request)&&!this.objectIntent;
+    this.objectPending=!!this.registry&&actionRequested&&/\b(show|guide|lead|take|inspect|examine|visit|read|sit|toggle|ring|water|open|close|tend|light|switch|turn|walk|go|move|stand)\b/i.test(request)&&!this.objectIntent;
     // Face-to-face questions hold the caretaker in place rather than inventing errands.
     const pointingMove=actionRequested && /\b(there|that (spot|place|point))\b/i.test(request) && /stand|move|walk|go|wait/i.test(request);
     const previousExecution=this.execution;
-    if(this.objectIntent)this.applyStep(this.objectIntent,player);
+    if(this.resolutionError){/* The LLM explains retrieved failure facts; no action is started. */}
+    else if(this.objectIntent)this.applyStep(this.objectIntent,player);
     else this.apply(directive?{action:directive,reply:directive==='WAIT'?'WAIT':'FOLLOW'}:pointingMove?{action:'MOVE_TO_TARGET',reply:'ACKNOWLEDGE'}:actionRequested&&!this.objectPending?localDecision(request):{action:'WAIT',reply:'ACKNOWLEDGE'},player);
     if(!actionRequested&&previousExecution)this.execution=previousExecution.status==='running'?{...previousExecution,status:'cancelled',detail:'Interrupted by a new player turn.'}:previousExecution;
     this.immediateJump=actionRequested&&localDecision(request).action==='JUMP';
-    if(directive&&this.llmEnabled)this.say(directive==='WAIT'?REPLIES.WAIT:REPLIES.FOLLOW);
-    if(!this.llmEnabled&&this.objectIntent){const object=this.registry!.get(this.objectIntent.targetId)!;this.say(this.action==='WAIT'?this.speech:`${this.objectIntent.action==='GUIDE_TO_OBJECT'?'Come with me. I will show you':this.objectIntent.interaction==='sit'?'I will sit on':'I will approach'} ${object.name}.`);}
-    else if(!this.llmEnabled) this.say(this.objectPending&&!pointingMove?'I could not identify that object in this world. Try its name or point at it.':pointingMove?(this.action==='MOVE_TO_TARGET'?'I will stand at the spot you pointed at.':'Point at clear, reachable ground so I can stand there.'):actionRequested?REPLIES[localDecision(request).reply]:
-      /who/i.test(request)?REPLIES.IDENTITY:/where|explore/i.test(request)?REPLIES.EXPLORE:
-      'NPC conversation is off. Enable it in the pause menu so I can answer your question.');
-    await Promise.allSettled([this.aiEnabled && actionRequested && !this.immediateJump && !directive && !pointingMove && !this.objectIntent && !this.objectPending ? this.decide(player,request) : Promise.resolve(),
+    if(!this.llmEnabled)this.thoughtStatus='Conversation is off; actions can still run.';
+    if(this.llmEnabled&&view.image&&isVisualRequest(request)&&!actionRequested){
+      const epoch=this.epoch,ready=await this.lookAtTarget(player);if(epoch!==this.epoch)return;
+      this.thinking=false;this.feedbackPending=false;
+      if(ready&&this.onLookReady){try{this.view={...this.onLookReady(this.lookFocus),target:this.lookTarget,perspective:'npc'};}catch{this.view={target:view.target};this.record('MOVE_TO_TARGET','blocked','NPC camera capture failed.');this.feedbackPending=false;}}
+      else if(!ready)this.view={target:view.target};
+    }
+    await Promise.allSettled([this.aiEnabled && actionRequested && !this.resolutionError && !this.immediateJump && !directive && !pointingMove && !this.objectIntent && !this.objectPending ? this.decide(player,request) : Promise.resolve(),
       this.llmEnabled ? this.think(player,request) : Promise.resolve()]);
   }
-  private async think(player:Point,request:string,deliberate=false) {
+  private async think(player:Point,request:string,deliberate=false,actionResult=false) {
     this.thinking=true; this.thoughtStatus='LLM is thinking…';
     const epoch=this.epoch,controller=new AbortController();this.thoughtController=controller;
     const timeout=setTimeout(()=>controller.abort(),45000);
     try {
-      const response=await this.fetcher('/api/npc/thought',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/x-ndjson'},
-        body:JSON.stringify({...this.snapshot(player,request),history:deliberate?[]:this.history,view:deliberate?{}:this.view,voice:this.voiceEnabled,deliberate}),signal:controller.signal});
+      const response=await this.fetcher('/api/npc/thought',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/x-ndjson','X-NPC-Provider':this.llmProvider},
+        body:JSON.stringify({...this.snapshot(player,request),history:deliberate?[]:this.history,view:deliberate||actionResult?{}:this.view,voice:this.voiceEnabled,deliberate,...(actionResult?{event:'action_result'}:{})}),signal:controller.signal});
       if(epoch!==this.epoch)return;
       const vision=response.headers.get('X-NPC-Vision');
       const visionSource=response.headers.get('X-NPC-Vision-Source');
@@ -127,34 +177,32 @@ export class Caretaker {
         if(epoch!==this.epoch)return;
         if(result.worldId&&result.worldId!==this.registry?.id)throw Error('Reply belongs to a different world');
       if(typeof result.speech!=='string'||result.speech.length>600||!Array.isArray(result.plan)||result.plan.length>3)throw Error('Invalid LLM plan');
-      const directive=deliberate?undefined:playerDirective(request);
-      if(directive)result.speech=directive==='WAIT'?REPLIES.WAIT:REPLIES.FOLLOW;
-      if(replyApplied){if(!canPlanActions(request)&&this.speech!==result.speech)this.say(result.speech);return;}
+      const directive=deliberate||actionResult?undefined:playerDirective(request);
+      if(replyApplied){if(!canPlanActions(request)&&result.speech.trim()&&this.speech!==result.speech)this.say(result.speech);return;}
       const validated=parsePlan(result.plan);
       for(const step of validated)if(typeof step!=='string'){
         const object=this.registry?.get(step.targetId);if(!object||step.action==='INTERACT_OBJECT'&&!object.actions.includes(step.interaction!))throw Error('Unsupported world object or interaction');
       }
+      if(actionResult){replyApplied=true;if(result.speech.trim())this.say(result.speech);return;}
       replyApplied=true;this.planned=true;
-      this.plan=(deliberate||canPlanActions(request))&&!this.objectIntent?[...validated]:[];
+      this.plan=!actionResult&&!this.resolutionError&&(deliberate||canPlanActions(request))&&!this.objectIntent?[...validated]:[];
       if(directive){
         this.plan=[];
         // Small models sometimes reuse an old errand from conversation history.
         // Preserve the direct instruction and keep spoken acknowledgement consistent.
-        if(validated.some(step=>step!==directive))result.speech=directive==='WAIT'?REPLIES.WAIT:REPLIES.FOLLOW;
         if(this.action!==directive)this.apply({action:directive,reply:directive==='WAIT'?'WAIT':'FOLLOW'},player);
       }
-      if(this.objectPending&&this.plan.some(step=>typeof step==='string'&&['GUIDE_PLAYER','INSPECT_WAYSTONE','TEND_LANTERN'].includes(step))){this.plan=[];result.speech='I could not identify that object. Please point at it or give its name.';}
-      if(this.objectIntent&&this.complete&&this.action==='WAIT')result.speech=this.speech;
+      let suppressSpeech=false;
+      if(this.feedbackPending&&this.objectIntent&&this.execution?.status==='completed')suppressSpeech=true;
+      if(directive&&validated.some(step=>step!==directive))suppressSpeech=true;
+      if(this.objectPending&&this.plan.some(step=>typeof step==='string'&&['GUIDE_PLAYER','INSPECT_WAYSTONE','TEND_LANTERN'].includes(step))){this.plan=[];suppressSpeech=true;this.thoughtStatus='Planner did not identify the requested object.';}
       const first=this.plan.shift();if(first&&!(first==='JUMP'&&this.immediateJump))this.applyStep(first,player);
-      else if(deliberate||isAutonomyRequest(request))this.apply({action:'WAIT',reply:'WAIT'},player);
-      if((first||this.objectIntent)&&this.execution?.status==='blocked'){this.plan=[];result.speech=this.execution.detail;}
-      else if(this.activeObject&&(this.activeObject.action==='INTERACT_OBJECT'||/\b(i (?:have |already )?(?:turned|toggled|switched|lit|sat|arrived)|done|completed)\b/i.test(result.speech))){
-        const step=this.activeObject,object=this.registry!.get(step.targetId)!;
-        result.speech=`I will walk to ${object.name}${step.interaction==='toggle'?` and ${step.state?`turn it ${step.state}`:'toggle it'}`:step.interaction==='sit'?' and sit down':step.interaction==='read'?' and read it':''}.`;
-      }
-      else if(canPlanActions(request)&&!this.objectIntent&&!validated.length&&/\b(i (?:will|have|already)|i['’]m (?:coming|going)|i['’]ll|done|completed)\b/i.test(result.speech))result.speech='I have not started an action. Please clarify what you want me to do.';
+      else if(!actionResult&&(deliberate||isAutonomyRequest(request)))this.apply({action:'WAIT',reply:'WAIT'},player);
+      if(!actionResult&&(first||this.objectIntent)&&this.execution?.status==='blocked'){this.plan=[];suppressSpeech=true;this.feedbackPending=true;}
+      if(!actionResult&&this.execution?.status!=='completed'&&/\b(i (?:have |already )?(?:turned|toggled|switched|lit|sat|arrived)|done|completed)\b/i.test(result.speech)){suppressSpeech=true;this.thoughtStatus='Unconfirmed completion claim withheld.';}
+      if(!actionResult&&canPlanActions(request)&&!this.objectIntent&&!validated.length&&/\b(i (?:will|have|already)|i['’]m (?:coming|going)|i['’]ll|done|completed)\b/i.test(result.speech)){suppressSpeech=true;this.thoughtStatus='No executable action was returned.';}
       this.source='LLM plan · overrides decision model';
-        if(!directive||this.speech!==result.speech)this.say(result.speech);
+        if(!suppressSpeech&&result.speech.trim())this.say(result.speech);
         if(typeof result.audio==='string' && result.audio.startsWith('data:audio/wav;base64,') && result.audio.length<6000000)this.replyAudio=result.audio;
       };
       let result:any;
@@ -182,11 +230,10 @@ export class Caretaker {
         if(!response.ok)throw Error(result.error || 'LLM unavailable');
         applyReply(result);
       }
-      if(!deliberate){this.history.push(`Player: ${request}`,`Caretaker: ${result.speech}`);this.history=this.history.slice(-8);}
+      if(!deliberate){if(!actionResult)this.history.push(`Player: ${request}`);if(result.speech.trim()&&this.speech===result.speech)this.history.push(`Caretaker: ${result.speech}`);this.history=this.history.slice(-8);}
       this.thoughtStatus=`${result.provider==='local'?'Local LLM':'LLM'} · ${result.latencyMs ?? 0} ms`;
     }catch(error){if(epoch===this.epoch){
       this.thoughtStatus=error instanceof Error?error.message:'LLM unavailable';
-      if(!playerDirective(request))this.say('I could not get a conversation reply from the model. Please try again.');
     }}
     finally{clearTimeout(timeout);if(epoch===this.epoch){this.thinking=false;this.decisionClock=this.autonomyInterval;}}
   }
@@ -220,16 +267,19 @@ export class Caretaker {
   private stand(){
     if(!this.seated)return;this.seated=false;this.mesh.scale.y=1;
     if(this.standingSpot)this.mesh.position.copy(this.standingSpot);
-    this.mesh.children.forEach((child,i)=>{const pose=this.restPose[i];child.position.copy(pose.position);child.rotation.set(pose.rotation.x,pose.rotation.y,pose.rotation.z);});this.syncCollider();
+    if(!caretakerAvatar(this.mesh))this.mesh.children.forEach((child,i)=>{const pose=this.restPose[i];child.position.copy(pose.position);child.rotation.set(pose.rotation.x,pose.rotation.y,pose.rotation.z);});this.syncCollider();
   }
-  private record(step:NpcStep,status:ActionReceipt['status'],detail:string){this.execution={step:typeof step==='string'?step:{...step},status,detail:detail.slice(0,200)};}
+  private record(step:NpcStep,status:ActionReceipt['status'],detail:string){
+    this.execution={step:typeof step==='string'?step:{...step},status,detail:detail.slice(0,200)};
+    if(status==='blocked'){this.activity=detail;this.feedbackPending=this.llmEnabled&&this.playerTask;this.plan=[];}
+  }
   private applyStep(step:NpcStep,player:Point){
     if(typeof step==='string'){this.apply({action:step,reply:'ACKNOWLEDGE'},player);return;}
     this.stand();this.activeObject=undefined;this.patrolling=false;
     const object=this.registry?.get(step.targetId);
-    if(!object||step.action==='INTERACT_OBJECT'&&(!step.interaction||!object.actions.includes(step.interaction))){this.apply({action:'WAIT',reply:'WAIT'},player);this.record(step,'blocked','That object or interaction is not available in this world.');this.say(this.execution!.detail);return;}
+    if(!object||step.action==='INTERACT_OBJECT'&&(!step.interaction||!object.actions.includes(step.interaction))){this.apply({action:'WAIT',reply:'WAIT'},player);this.record(step,'blocked','Requested object or interaction unavailable.');return;}
     this.route=this.navigation.approach(this.mesh.position,object.bounds);
-    if(!this.route.length){this.apply({action:'WAIT',reply:'WAIT'},player);this.record(step,'blocked',`I cannot find a clear route to ${object.name}.`);this.say(this.execution!.detail);return;}
+    if(!this.route.length){this.apply({action:'WAIT',reply:'WAIT'},player);this.record(step,'blocked',`No clear route to ${object.name}.`);return;}
     this.activeObject=step;this.destination=object.id;this.action=step.action;this.complete=false;
     this.record(step,'running',`Approaching ${object.name}; interaction has not happened yet.`);
     this.activity=`${step.action==='GUIDE_TO_OBJECT'?'Guiding you to':'Walking to'} ${object.name}`;
@@ -238,21 +288,21 @@ export class Caretaker {
     const step=this.activeObject,object=step&&this.registry?.get(step.targetId);this.activeObject=undefined;
     if(step&&object){
       const p=this.mesh.position,b=object.bounds,distance=Math.hypot(Math.max(b.minX-p.x,0,p.x-b.maxX),Math.max(b.minZ-p.z,0,p.z-b.maxZ));
-      if(distance>1.8){this.activeObject=step;this.route=this.navigation.approach(p,b);this.complete=!this.route.length;if(this.complete){this.activeObject=undefined;this.action='WAIT';this.record(step,'blocked','That object moved out of reach.');this.say(this.execution!.detail);}return;}
+      if(distance>1.8){this.activeObject=step;this.route=this.navigation.approach(p,b);this.complete=!this.route.length;if(this.complete){this.activeObject=undefined;this.action='WAIT';this.record(step,'blocked','Object moved out of reach.');}return;}
     }
     this.complete=true;this.dwell=.5;this.action=this.patrolling?'PATROL':'WAIT';
     if(!step||!object)return;
     this.visited.add(object.id);this.activity=`Arrived at ${object.name}`;
     if(this.patrolling){this.activity=`Looking around ${object.name}`;return;}
     if(step.action==='INTERACT_OBJECT'&&step.interaction){
-      if(step.interaction==='toggle'&&step.state===object.state){this.record(step,'completed',`The ${object.name} is already ${step.state}.`);this.say(this.execution!.detail);return;}
-      try{const result=this.registry!.interact(object.id,step.interaction);this.say(result.message);
-        if(result.seat){this.standingSpot=this.mesh.position.clone();this.mesh.position.copy(result.seat);this.mesh.scale.y=.8;this.seated=true;for(const child of this.mesh.children.slice(2)){child.position.y=.35;child.position.z=.4;child.rotation.x=-Math.PI/2;}this.syncCollider();this.activity=`Sitting on ${object.name}`;}
+      if(['toggle','open'].includes(step.interaction)&&step.state===object.state){this.record(step,'completed',`${object.name}: already ${step.state}; no state change.`);return;}
+      try{const result=this.registry!.interact(object.id,step.interaction);
+        if(result.seat){this.standingSpot=this.mesh.position.clone();this.mesh.position.copy(result.seat);if(!caretakerAvatar(this.mesh))this.mesh.scale.y=.8;this.seated=true;if(!caretakerAvatar(this.mesh))for(const child of this.mesh.children.slice(2)){child.position.y=.35;child.position.z=.4;child.rotation.x=-Math.PI/2;}this.syncCollider();this.activity=`Sitting on ${object.name}`;}
         else this.activity=`${step.interaction} completed at ${object.name}`;
         this.record(step,'completed',result.message);
-      }catch{this.record(step,'blocked','That interaction is no longer available.');this.say(this.execution!.detail);}
-    }else this.say(step.action==='INSPECT_OBJECT'?`${object.description}${object.state?` Current state: ${object.state}.`:''}`:`Here is ${object.name}.`);
-    if(step.action!=='INTERACT_OBJECT')this.record(step,'completed',this.speech);
+      }catch{this.record(step,'blocked','Interaction no longer available.');}
+    }else this.record(step,'completed',`${object.description}${object.state?` State: ${object.state}.`:''}`);
+    if(this.llmEnabled&&this.playerTask&&(step.action==='INSPECT_OBJECT'||step.interaction==='read'))this.feedbackPending=true;
   }
   apply(decision: Decision, player: Point) {
     if(decision.action==='JUMP') { this.hop=.65;this.dwell=0;this.record('JUMP','running','Jumping once.'); return; }
@@ -297,6 +347,17 @@ export class Caretaker {
   }
   say(text:string) { this.replyAudio=undefined;this.speech=text;this.speechVersion++; }
   step(dt: number, player: Vector3) {
+    if(this.look){
+      this.look.remaining-=dt;
+      if(this.look.remaining<=0||this.execution?.status==='blocked'){this.record('MOVE_TO_TARGET','blocked','Could not reach a clear view of the requested place.');this.action='WAIT';this.complete=true;this.route=[];this.endLook(false);}
+      else if(this.complete&&this.action==='WAIT'){
+        this.mesh.rotation.y=Math.atan2(this.look.focus.x-this.mesh.position.x,this.look.focus.z-this.mesh.position.z);this.look.settle-=dt;
+        this.activity='Looking at the pointed place';
+        if(this.look.settle<=0){this.lookFocus=this.look.focus.clone();const visible=this.canSee(this.look.focus,this.look.bounds);if(!visible)this.record('MOVE_TO_TARGET','blocked','The view is obstructed from the reachable vantage point.');this.endLook(visible);}
+      }
+    }
+    caretakerAvatar(this.mesh)?.update(dt,this.seated,this.hop>0);
+    if(this.feedbackPending&&this.llmEnabled&&!this.thinking){this.feedbackPending=false;void this.think(player,this.lastRequest,false,true);}
     if(this.hop>0){this.hop=Math.max(0,this.hop-dt);this.mesh.position.y=Math.sin(this.hop/.65*Math.PI)*.7;if(this.hop===0&&this.execution?.step==='JUMP')this.record('JUMP','completed','Jumped once.');}
     this.decisionClock -= dt; this.replan -= dt; this.dwell -= dt;
     if (!this.playerTask && !this.thinking && !this.plan.length && this.complete && (!this.llmEnabled||this.dwell<=0) && this.decisionClock <= 0 && !this.busy) {
@@ -336,10 +397,10 @@ export class Caretaker {
     const next = {x:p.x+(length?dx/length*stride:0),z:p.z+(length?dz/length*stride:0)};
     const nextDistance=Math.hypot(next.x-player.x,next.z-player.z);
     if (nextDistance < .95 && nextDistance<=distance && player.y < 1.9) { this.activity = 'Waiting for the path to clear'; return; }
-    if (!this.navigation.clear(p,next)) { this.route=[]; this.complete=!['FOLLOW_PLAYER','GREET_PLAYER'].includes(this.action);this.replan=0; this.dwell=2;if(this.activeObject){this.record(this.activeObject,'blocked','The route is blocked. Please give me a clear path.');this.activeObject=undefined;this.action='WAIT';this.say(this.execution!.detail);}return; }
+    if (!this.navigation.clear(p,next)) { this.route=[]; this.complete=!['FOLLOW_PLAYER','GREET_PLAYER'].includes(this.action);this.replan=0; this.dwell=2;if(this.activeObject){this.record(this.activeObject,'blocked','Route blocked by an obstacle.');this.activeObject=undefined;this.action='WAIT';}return; }
     p.set(next.x,this.hop>0?p.y:0,next.z); this.mesh.rotation.y = Math.atan2(dx,dz);
     this.animation += dt*9;
-    for (let i=2;i<this.mesh.children.length;i++) this.mesh.children[i].rotation.x = Math.sin(this.animation+i*Math.PI)*.35;
+    if(!caretakerAvatar(this.mesh))for (let i=2;i<this.mesh.children.length;i++) this.mesh.children[i].rotation.x = Math.sin(this.animation+i*Math.PI)*.35;
     this.syncCollider();
     if (length <= .06 || stride === length) this.route.shift();
     if (!this.route.length && !['FOLLOW_PLAYER','GREET_PLAYER'].includes(this.action)) {
@@ -356,7 +417,7 @@ export class Caretaker {
     this.cancel();this.stand();this.activeObject=undefined;this.objectIntent=undefined; this.mesh.position.set(0,0,-2); this.mesh.rotation.set(0,0,0);
     this.syncCollider(); this.visited.clear(); this.route=[]; this.complete=true; this.dwell=5;
     this.action='PATROL'; this.activity='Watching the courtyard'; this.decisionClock=0;
-    this.plan=[];this.history=[];this.planned=false;this.playerTask=false;this.hop=0;this.execution=undefined;this.thoughtStatus='';
+    this.plan=[];this.history=[];this.planned=false;this.playerTask=false;this.hop=0;this.execution=undefined;this.thoughtStatus='';this.speech='';this.feedbackPending=false;this.resolutionError=undefined;this.lastRequest='';
   }
   dispose() { this.cancel(); }
 }

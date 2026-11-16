@@ -25,12 +25,12 @@ test('Groq streams vision replies, keeps credentials server-side, and exposes ac
     const status=await(await fetch(url+'/api/npc/thought/status')).json();assert.equal(status.usage.requestsRemaining,987);assert.equal(status.usage.sessionRequests,1);assert.equal(status.configured,true);
   });
 });
-test('Groq rate limits remain visible, malformed plans cannot execute, and direct follow uses no allowance',async()=>{
+test('Groq rate limits remain visible for generated acknowledgements and malformed plans cannot execute',async()=>{
   let calls=0;
   const middleware=createGroqThoughtMiddleware({apiKey:'secret',fetcher:(async()=>{calls++;return Response.json({error:{message:'not exposed'}},{status:429,headers:{...headers,'retry-after':'12'}});}) as typeof fetch});
   await serve(middleware,async url=>{
     const send=(request:string)=>fetch(url+'/api/npc/thought',{method:'POST',body:JSON.stringify({...state,request})});
-    const follow=await(await send('Come here')).json();assert.deepEqual(follow.plan,['FOLLOW_PLAYER']);assert.equal(calls,0);
+    const follow=await send('Come here');assert.equal(follow.status,429);assert.equal(calls,1);
     const limited=await send('Hello');assert.equal(limited.status,429);assert.match((await limited.json()).error,/rate limit/);
     const status=await(await fetch(url+'/api/npc/thought/status')).json();assert.equal(status.usage.lastStatus,429);assert.equal(status.usage.retryAfter,'12');
   });

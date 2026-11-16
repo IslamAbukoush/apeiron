@@ -1,5 +1,22 @@
 # World-aware caretaker
 
+## Generated character dialogue
+
+All caretaker speech comes from the selected conversation model. Rowan's shared
+personality is warm, observant, curious and quietly wry; the prompt encourages
+natural phrasing and contextual responses without forced greetings or catchphrases.
+World names, nearby objects, descriptions, live state, local vision and action
+receipts are retrieved context data, not text interpolated into dialogue scripts.
+
+There are no scripted welcomes, offline answers, arrival announcements, readouts
+or interaction confirmations. Ordinary movement/patrol/interaction does not
+replace the current model reply or request an extra narration turn. Explicit
+reading/inspection and actionable failures can send engine results back to the
+selected model for an original response, with no executable plan on that event.
+With conversation disabled or unavailable, the NPC stays silent and system status
+shows the issue. Invalid action claims are withheld rather than replaced by a
+canned correction. The quick-question buttons only send questions to the model.
+
 The courtyard and all six generated themes now supply the same `WorldRegistry`.
 NPC behavior uses current registered objects and their bounds. The local LLM
 receives the active world and a bounded catalog of relevant objects.
@@ -121,9 +138,9 @@ Engine receipts record the action, running/completed/blocked/cancelled status an
 outcome. They are passed to the planner alongside history. Groq action turns use
 strict structured output, with primitive and targeted actions normalized into
 the shared executor. Plain assistant history is encoded consistently as JSON on
-these turns. Speech alone never executes an action. Interaction acknowledgements
-describe the pending walk/action; completion is reported only by engine success,
-and blocked routes preserve their failure message. A delayed acknowledgement of
+these turns. Speech alone never executes an action. Generated acknowledgements
+must respect the running/completed/blocked engine receipt. Engine status stays
+separate from character dialogue; blocked routes do not fabricate NPC lines. A delayed acknowledgement of
 an immediate jump cannot cause a duplicate jump in the same turn.
 
 When idle, the LLM can choose up to three supported actions from the current

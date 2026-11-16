@@ -4,6 +4,7 @@ export function validateView(value:unknown,limit=25):ViewContext {
   const view=value as ViewContext;
   if(!view || typeof view!=='object')throw Error('Invalid view');
   const result:ViewContext={};
+  if(view.perspective!==undefined){if(!['player','npc'].includes(view.perspective))throw Error('Invalid perspective');result.perspective=view.perspective;}
   if(view.image!==undefined){
     if(typeof view.image!=='string'||view.image.length>1000000||!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(view.image))throw Error('Invalid image');
     const bytes=Buffer.from(view.image.split(',')[1],'base64');if(bytes[0]!==255||bytes[1]!==216)throw Error('Invalid JPEG');

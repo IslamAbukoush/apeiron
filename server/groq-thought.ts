@@ -1,3 +1,4 @@
+import {WORLD_INTERACTIONS} from '../src/game/world-contract.ts';
 import {createLocalThoughtMiddleware} from './local-thought.ts';
 import {needsVisualContext,type LocalVision,type Perception} from './local-vision.ts';
 import {LEGACY_ACTIONS,parsePlan} from '../src/game/npc-contract.ts';
@@ -7,7 +8,7 @@ function strictSchema(value:any){
   const choices=value.properties.plan.items.oneOf||[value.properties.plan.items];
   const actions=choices.flatMap((choice:any)=>choice.enum||choice.properties?.action.enum||[]);
   const ids=choices.find((choice:any)=>choice.properties?.targetId)?.properties.targetId.enum||[];
-  return {type:'object',properties:{speech:{type:'string'},plan:{type:'array',items:{type:'object',properties:{action:{type:'string',enum:actions},targetId:{type:['string','null'],enum:[...ids,null]},interaction:{type:['string','null'],enum:['read','toggle','sit',null]},state:{type:['string','null'],enum:['on','off',null]}},required:['action','targetId','interaction','state'],additionalProperties:false}}},required:['speech','plan'],additionalProperties:false};
+  return {type:'object',properties:{speech:{type:'string'},plan:{type:'array',items:{type:'object',properties:{action:{type:'string',enum:actions},targetId:{type:['string','null'],enum:[...ids,null]},interaction:{type:['string','null'],enum:[...WORLD_INTERACTIONS,null]},state:{type:['string','null'],enum:['on','off','open','closed',null]}},required:['action','targetId','interaction','state'],additionalProperties:false}}},required:['speech','plan'],additionalProperties:false};
 }
 /** Groq headers are snapshots, not a billing ledger. Never infer an unreported allowance. */
 export function createGroqThoughtMiddleware(options:{apiKey?:string;model?:string;fetcher?:typeof fetch;vision?:LocalVision}){
@@ -38,7 +39,7 @@ export function createGroqThoughtMiddleware(options:{apiKey?:string;model?:strin
     if(body.format){
       // Plain assistant history otherwise teaches the model to answer outside JSON mode.
       for(const message of messages)if(message.role==='assistant')message.content=JSON.stringify({speech:message.content,plan:[]});
-      messages[0].content+=' Every assistant turn must match the supplied JSON schema, including contextual follow-ups. Each plan step is an object with action, targetId, interaction and state. For JUMP/FOLLOW_PLAYER/WAIT and other simple actions, targetId/interaction/state must be null. For object movement use targetId with interaction/state null. Use INTERACT_OBJECT for read/toggle/sit. Speech alone cannot execute anything. Never invent a target ID.';
+      messages[0].content+=' Every assistant turn must match the supplied JSON schema, including contextual follow-ups. Each plan step is an object with action, targetId, interaction and state. For JUMP/FOLLOW_PLAYER/WAIT and other simple actions, targetId/interaction/state must be null. For object movement use targetId with interaction/state null. Use INTERACT_OBJECT for supported read/toggle/sit/ring/water/open interactions. Speech alone cannot execute anything. Never invent a target ID.';
     }
     const started=performance.now();
     const response=await fetcher('https://api.groq.com/openai/v1/chat/completions',{method:'POST',signal:init?.signal,headers:{Authorization:`Bearer ${options.apiKey}`,'Content-Type':'application/json'},body:JSON.stringify({model,messages,stream:body.stream,max_completion_tokens:body.format?400:180,temperature:.3,reasoning_effort:model.includes('qwen')?'none':'low',...(body.format?{response_format:{type:'json_schema',json_schema:{name:'npc_reply',strict:true,schema:strictSchema(body.format)}}}:{stream_options:{include_usage:true}})})});

@@ -1,4 +1,4 @@
-import {OBJECT_ACTIONS,type ObjectStep,type WorldSnapshot} from './world-contract.ts';
+import {WORLD_INTERACTIONS,OBJECT_ACTIONS,type ObjectStep,type WorldSnapshot} from './world-contract.ts';
 export const ACTIONS = {
   PATROL: 'Walk to another courtyard landmark.',
   INSPECT_WAYSTONE: 'Walk to the waystone, read it, and remember the inscription.',
@@ -38,15 +38,16 @@ export function planStepSchema(ids?:string[]){
   const legacy={type:'string',enum:LEGACY_ACTIONS};
   if(!ids?.length)return legacy;
   return {oneOf:[legacy,{type:'object',properties:{action:{type:'string',enum:OBJECT_ACTIONS.slice(0,3)},targetId:{type:'string',enum:ids}},required:['action','targetId'],additionalProperties:false},
-    {type:'object',properties:{action:{type:'string',enum:['INTERACT_OBJECT']},targetId:{type:'string',enum:ids},interaction:{type:'string',enum:['read','toggle','sit']},state:{type:'string',enum:['on','off']}},required:['action','targetId','interaction'],additionalProperties:false}]};
+    {type:'object',properties:{action:{type:'string',enum:['INTERACT_OBJECT']},targetId:{type:'string',enum:ids},interaction:{type:'string',enum:WORLD_INTERACTIONS},state:{type:'string',enum:['on','off','open','closed']}},required:['action','targetId','interaction'],additionalProperties:false}]};
 }
 export function parsePlan(value:unknown):NpcStep[]{
   if(!Array.isArray(value)||value.length>3)throw Error('Invalid plan');
   return value.map(step=>{
     if(typeof step==='string'&&Object.hasOwn(ACTIONS,step)&&!OBJECT_ACTIONS.includes(step as ObjectStep['action']))return step as NpcAction;
-    if(!step||typeof step!=='object'||!OBJECT_ACTIONS.includes(step.action)||typeof step.targetId!=='string'||!/^[a-zA-Z0-9_-]{1,80}$/.test(step.targetId)||step.interaction!==undefined&&!['read','toggle','sit'].includes(step.interaction)||step.action==='INTERACT_OBJECT'&&!step.interaction)throw Error('Invalid object action');
-    if(step.state!==undefined&&!['on','off'].includes(step.state))throw Error('Invalid interaction state');
-    if(step.action!=='INTERACT_OBJECT'&&(step.interaction!==undefined||step.state!==undefined)||step.state!==undefined&&step.interaction!=='toggle')throw Error('Interaction fields require the matching interaction action');
+    if(!step||typeof step!=='object'||!OBJECT_ACTIONS.includes(step.action)||typeof step.targetId!=='string'||!/^[a-zA-Z0-9_-]{1,80}$/.test(step.targetId)||step.interaction!==undefined&&!WORLD_INTERACTIONS.includes(step.interaction)||step.action==='INTERACT_OBJECT'&&!step.interaction)throw Error('Invalid object action');
+    if(step.state!==undefined&&!['on','off','open','closed'].includes(step.state))throw Error('Invalid interaction state');
+    if(step.action!=='INTERACT_OBJECT'&&(step.interaction!==undefined||step.state!==undefined)||step.state!==undefined&&!['toggle','open'].includes(step.interaction))throw Error('Interaction fields require the matching interaction action');
+    if(step.state!==undefined&&(step.interaction==='toggle'&&!['on','off'].includes(step.state)||step.interaction==='open'&&!['open','closed'].includes(step.state)))throw Error('Invalid desired object state');
     return {action:step.action,targetId:step.targetId,...(step.interaction?{interaction:step.interaction}:{}),...(step.state?{state:step.state}:{})} as ObjectStep;
   });
 }
@@ -55,19 +56,19 @@ export function isActionRequest(request: string): boolean {
   if(isAutonomyRequest(request))return true;
   const text=request.trim().replace(/[.!]+$/,'');
   if (/^(what|where|who|why|how|when|which|tell me|explain|describe|do you|are you|is |does )\b/i.test(text)) return false;
-  return /^(?:(?:please|now|then)\s+|(?:can|could|would|will) you\s+|i (?:want|need) you to\s+)*(?:stand|move|follow|come|wait|stop|stay|show|guide|take|tend|toggle|light|switch|turn|inspect|examine|read|visit|patrol|walk|go|jump|hop|lead|sit)\b/i.test(text);
+  return /^(?:(?:please|now|then)\s+|(?:can|could|would|will) you\s+|i (?:want|need) you to\s+)*(?:stand|move|follow|come|wait|stop|stay|show|guide|take|tend|toggle|ring|water|open|close|light|switch|turn|inspect|examine|read|visit|patrol|walk|go|jump|hop|lead|sit)\b/i.test(text);
 }
-export type ViewContext = { image?: string; target?: Point & { y:number; name:string; ground:boolean;objectId?:string } };
+export type ViewContext = { image?: string; perspective?:'player'|'npc';observer?:Point&{y:number;dx:number;dy:number;dz:number};target?: Point & { y:number; name:string; ground:boolean;objectId?:string } };
 export const REPLIES = {
-  WELCOME: 'Welcome back. There is always something to tend in this courtyard.',
-  FOLLOW: 'I will follow you. Lead the way.',
-  GUIDE: 'Come with me. I will show you the waystone.',
-  WAIT: 'Of course. I will wait here.',
-  STONE: 'The waystone says: “Every world begins with a place to stand.”',
-  LANTERN: 'I will tend the lantern by the path.',
-  IDENTITY: 'I am the caretaker. I look after the courtyard and its visitors.',
-  EXPLORE: 'You can explore the arch, the platforms, and the waystone beside the path.',
-  ACKNOWLEDGE: 'Let me see what needs doing.',
+  WELCOME: 'Greeting intent; dialogue is generated separately.',
+  FOLLOW: 'Follow request acknowledgement intent.',
+  GUIDE: 'Guidance request acknowledgement intent.',
+  WAIT: 'Wait request acknowledgement intent.',
+  STONE: 'Waystone information intent.',
+  LANTERN: 'Lantern interaction intent.',
+  IDENTITY: 'Character identity question intent.',
+  EXPLORE: 'World exploration question intent.',
+  ACKNOWLEDGE: 'General acknowledgement intent.',
 } as const;
 export type NpcReply = keyof typeof REPLIES;
 export type Point = { x: number; z: number };

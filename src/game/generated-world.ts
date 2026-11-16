@@ -1,3 +1,5 @@
+import {addWorldActivities} from './world-activities';
+import {createCaretakerAvatar,caretakerAvatar} from './npc-avatar';
 import {WorldRegistry,addBench,colorName} from './world-registry';
 import * as THREE from 'three';
 import type { WorldDefinition, PropKind } from './generation';
@@ -145,11 +147,7 @@ export function createGeneratedWorld(definition: WorldDefinition) {
   registry.register(landmark,{id:'landmark',name:landmarkName,aliases,kind:'landmark',color:colorName(palette.accent),description:`The ${landmarkName.toLowerCase()} is the main landmark in ${definition.name}.`},{footprint:new THREE.Box3(new THREE.Vector3(theme==='forest'?-.8:-3.5,0,-15-(theme==='forest'?.8:3.5)),new THREE.Vector3(theme==='forest'?.8:3.5,9,-15+(theme==='forest'?.8:3.5)))});
   collider(0, -15, theme === 'forest' ? 0.8 : 3.5, 9);
 
-  const npc = new THREE.Group();
-  npc.position.set(0, 0, -2);
-  npc.userData.interactable = { id: 'caretaker', name: 'The caretaker', kind: 'npc' } satisfies Interactable;
-  mesh(npc, new THREE.ConeGeometry(0.42, 1.25, 8), accent, 0, 0.85, 0);
-  mesh(npc, new THREE.IcosahedronGeometry(0.23, 1), white, 0, 1.65, 0);
+  const npc = createCaretakerAvatar();
   scene.add(npc);
   collider(0, -2, 0.4, 1.9);
   const npcCollider=colliders[colliders.length-1];
@@ -163,8 +161,9 @@ export function createGeneratedWorld(definition: WorldDefinition) {
   const marker = box(3.4, 0, 3, 0.8, 1.4, 0.6, palette.secondary);
   marker.userData.interactable = { id: 'waystone', name: 'World waystone', kind: 'marker' } satisfies Interactable;
   registry.register(marker,{id:'waystone',name:'World waystone',aliases:['waystone','stone','inscription'],kind:'waystone',description:`The waystone records ${definition.name}. Seed: ${definition.seed}.`,actions:['read']});
-  registry.register(lantern,{id:'lantern',name:'Courtyard lantern',aliases:['lantern','lamp','light'],kind:'lantern',color:'yellow',description:'A lantern on a wooden post.',actions:['toggle']},{state:()=>lamp.get()?'on':'off',interact:()=>{lamp.toggle();return lamp.get()?'The lantern is now lit.':'The lantern is now off.';}});
+  registry.register(lantern,{id:'lantern',name:'Courtyard lantern',aliases:['lantern','lamp','light'],kind:'lantern',color:'yellow',description:'A lantern on a wooden post.',actions:['toggle']},{state:()=>lamp.get()?'on':'off',interact:()=>{lamp.toggle();return lamp.get()?'Lantern state changed to on.':'Lantern state changed to off.';}});
   addBench(scene,colliders,registry,palette.trunk);
+  const activities=addWorldActivities(scene,colliders,registry);
   // Low surfaces retain jumping practice in every generated map.
   registry.register(box(-4, 0, 7, 2, 0.45, 2, palette.secondary),{id:'low-platform',name:'Low platform',aliases:['low platform','platform'],kind:'platform',description:'A low jumping platform beside the path.'});
   registry.register(box(-6, 0, 7, 2, 0.9, 2, palette.accent),{id:'high-platform',name:'High platform',aliases:['high platform','platform'],kind:'platform',description:'A high jumping platform beside the low platform.'});
@@ -182,5 +181,5 @@ export function createGeneratedWorld(definition: WorldDefinition) {
   debug.visible = false;
   scene.add(debug);
   scene.updateMatrixWorld(true);
-  return { scene, colliders, debug, npc,npcCollider,lamp,registry,navigationColliders:colliders.filter(c=>c!==npcCollider), dispose: () => disposeScene(scene) };
+  return { scene, colliders, debug, npc,npcCollider,lamp,registry,activities,navigationColliders:colliders.filter(c=>c!==npcCollider), dispose: () => {caretakerAvatar(npc)?.dispose();disposeScene(scene);} };
 }

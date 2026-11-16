@@ -33,11 +33,11 @@ test('every generated theme registers its own landmark and supports guiding, ins
     assert.ok(validateWorld(map));assert.ok(map.objects.some(object=>object.id==='bench'));
     const landmark=map.objects.find(object=>object.id==='landmark')!;
     await npc.command('Show me where is the '+landmark.name,new Vector3(0,0,8));
-    assert.equal(npc.action,'GUIDE_TO_OBJECT',`${prompt}: ${npc.speech}`);arrive(npc,world,true);assert.ok(npc.visited.has('landmark'));assert.match(npc.speech,new RegExp(landmark.name,'i'));
-    await npc.command('Read the waystone',new Vector3(0,0,8));arrive(npc,world);assert.match(npc.speech,/Seed: object-tests/);
+    assert.equal(npc.action,'GUIDE_TO_OBJECT',`${prompt}: ${npc.speech}`);arrive(npc,world,true);assert.ok(npc.visited.has('landmark'));assert.equal(npc.speech,'');
+    await npc.command('Read the waystone',new Vector3(0,0,8));arrive(npc,world);assert.match(npc.execution!.detail,/Seed: object-tests/);assert.equal(npc.speech,'');
     await npc.command('Turn on the lantern',new Vector3(0,0,8));arrive(npc,world);assert.equal(world.lamp.get(),true);
     await npc.command('Turn on the lantern',new Vector3(0,0,8));arrive(npc,world);assert.equal(world.lamp.get(),true);
-    await npc.command('Sit on the bench',new Vector3(0,0,8));arrive(npc,world);assert.match(npc.activity,/Sitting/);assert.equal(world.npc.scale.y,.8);
+    await npc.command('Sit on the bench',new Vector3(0,0,8));arrive(npc,world);assert.match(npc.activity,/Sitting/);assert.equal(world.npc.scale.y,1);npc.step(.1,new Vector3(0,0,8));assert.equal(world.npc.userData.avatarAnimation,'sit');
     await npc.command('Follow me',new Vector3(0,0,8));assert.equal(world.npc.scale.y,1);assert.ok(new Navigation(world.navigationColliders,map.limit).walkable(world.npc.position));
     npc.dispose();world.dispose();
   }
@@ -50,8 +50,8 @@ test('names, aliases, nearest, pointing and ambiguous or missing destinations re
   assert.ok(resolveObjectRequest('inspect a lollipop',map,origin).error);
   const object=map.objects.find(object=>object.kind==='lollipop')!;
   assert.equal(resolveObjectRequest('inspect that lollipop',map,origin,{...object.position,y:2,name:object.name,ground:false,objectId:object.id}).step?.targetId,object.id);
-  await npc.command('show me the pyramid',origin);assert.equal(npc.action,'WAIT');assert.match(npc.speech,/cannot find/i);
-  await npc.command('sit on the cupcake',origin);assert.equal(npc.action,'WAIT');assert.match(npc.speech,/does not support sit/);
+  await npc.command('show me the pyramid',origin);assert.equal(npc.action,'WAIT');assert.match(npc.execution!.detail,/cannot find/i);assert.equal(npc.speech,'');
+  await npc.command('sit on the cupcake',origin);assert.equal(npc.action,'WAIT');assert.match(npc.execution!.detail,/does not support sit/);assert.equal(npc.speech,'');
   npc.dispose();world.dispose();
 });
 
@@ -70,7 +70,7 @@ test('guiding waits for a distant player and an enclosed object cannot execute i
   npc.dispose();world.dispose();
   const trapped=setup();const obstacles=[...trapped.world.navigationColliders,new Box3(new Vector3(4,0,-3),new Vector3(10,3,3))];
   const blocked=new Caretaker(trapped.world.npc,trapped.world.npcCollider,obstacles,trapped.world.lamp,undefined,trapped.world.registry);
-  await blocked.command('Sit on the bench',{x:0,z:8});assert.equal(blocked.action,'WAIT');assert.match(blocked.speech,/clear route/);assert.equal(trapped.world.npc.scale.y,1);
+  await blocked.command('Sit on the bench',{x:0,z:8});assert.equal(blocked.action,'WAIT');assert.match(blocked.execution!.detail,/clear route/);assert.equal(blocked.speech,'');assert.equal(trapped.world.npc.scale.y,1);
   blocked.dispose();trapped.npc.dispose();trapped.world.dispose();
 });
 

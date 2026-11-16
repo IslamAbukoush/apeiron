@@ -1,9 +1,7 @@
 import {createHash} from 'node:crypto';
 import {LOCAL_MODEL,LOCAL_URL} from './local-llm.ts';
+export {isVisualRequest as needsVisualContext} from '../src/game/visual-intent.ts';
 
-export function needsVisualContext(request:string){
-  return /\b(see|look|view|picture|screenshot|scene|point\w*|this|that|here|there|colou?r|wear\w*|visible|front|behind|left|right|surround\w*|describe|ground|sky|around|under|above|beside|nearby|notice|observe|recognize|identify)\b/i.test(request);
-}
 export type Perception={source:'local';model:string;used:boolean;pending?:boolean;description?:string;latencyMs?:number;cached?:boolean;error?:string};
 /** Vision supplies observations only. Executable targets still come from the game registry. */
 export class LocalVision {

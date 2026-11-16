@@ -22,7 +22,7 @@ test('explicit follow request persists without sending it to the decision model'
   await page.keyboard.press('KeyE');
   await page.getByLabel('Ask the caretaker to do something').fill('Please follow me');
   await page.getByRole('button',{name:'Ask caretaker',exact:true}).click();
-  await expect(page.locator('#npc-subtitle')).toContainText('I will follow you');
+  await expect(page.locator('#npc-subtitle')).toHaveText('');
   expect(requests).not.toContain('Please follow me');
   await page.screenshot({path:'artifacts/npc-conversation.png'});
   await expect(page.locator('#hud')).toBeVisible();

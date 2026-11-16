@@ -13,12 +13,12 @@ test('come here keeps following and stop holds position despite a waystone-biase
   const send=async(text:string)=>{await page.keyboard.press('KeyT');await page.locator('#chat-input').fill(text);await page.getByRole('button',{name:'Send message'}).click();};
   await send('Come here');
   await expect(page.locator('#npc-status')).toHaveAttribute('data-action','FOLLOW_PLAYER');
-  await expect(page.locator('#npc-subtitle')).toContainText('I will follow you');
+  await expect(page.locator('#npc-subtitle')).toHaveText('');
   await page.waitForTimeout(13000);
   await expect(page.locator('#npc-status')).toHaveAttribute('data-action','FOLLOW_PLAYER');
   await expect(page.locator('#npc-subtitle')).not.toContainText('waystone');
   await send('Stop');await expect(page.locator('#npc-status')).toHaveAttribute('data-action','WAIT');
-  await expect(page.locator('#npc-subtitle')).toContainText('wait here');
+  await expect(page.locator('#npc-subtitle')).toHaveText('');
   expect(decisions).toBe(0);
 });
 

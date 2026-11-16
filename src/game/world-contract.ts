@@ -1,10 +1,11 @@
 import type {Point,ViewContext} from './npc-contract.ts';
 
-export type WorldInteraction='read'|'toggle'|'sit';
+export const WORLD_INTERACTIONS=['read','toggle','sit','ring','water','open'] as const;
+export type WorldInteraction=typeof WORLD_INTERACTIONS[number];
 export type WorldObject={id:string;name:string;aliases:string[];kind:string;color:string;description:string;position:Point;bounds:{minX:number;maxX:number;minZ:number;maxZ:number};actions:WorldInteraction[];state:string};
 export type WorldSnapshot={id:string;name:string;limit:number;objects:WorldObject[]};
 export const OBJECT_ACTIONS=['GO_TO_OBJECT','GUIDE_TO_OBJECT','INSPECT_OBJECT','INTERACT_OBJECT'] as const;
-export type ObjectStep={action:typeof OBJECT_ACTIONS[number];targetId:string;interaction?:WorldInteraction;state?:'on'|'off'};
+export type ObjectStep={action:typeof OBJECT_ACTIONS[number];targetId:string;interaction?:WorldInteraction;state?:'on'|'off'|'open'|'closed'};
 const normalize=(text:string)=>text.toLowerCase().replace(/cup\s+cake/g,'cupcake').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
 
 export function findObjects(query:string,objects:WorldObject[],origin:Point):WorldObject[]{
@@ -26,7 +27,7 @@ export function findObjects(query:string,objects:WorldObject[],origin:Point):Wor
 export function resolveObjectRequest(request:string,world:WorldSnapshot,origin:Point,target?:ViewContext['target']):{step?:ObjectStep;error?:string;candidates:WorldObject[]}{
   const guide=/\b(show|guide|lead|take me)\b/i.test(request);
   const inspect=/\b(inspect|examine|read)\b/i.test(request);
-  const interact=/\b(sit|toggle|tend|light|switch|turn)\b/i.test(request);
+  const interact=/\b(sit|toggle|tend|light|switch|turn|ring|water|open|close)\b/i.test(request);
   const go=/\b(go|walk|move|stand|visit|come)\b/i.test(request);
   if(!guide&&!inspect&&!interact&&!go)return {candidates:[]};
   if(/\bthen\b|;/.test(request))return {candidates:findObjects(request,world.objects,origin)};
@@ -40,7 +41,7 @@ export function resolveObjectRequest(request:string,world:WorldSnapshot,origin:P
   }
   const object=matches[0];
   let interaction:WorldInteraction|undefined;
-  if(/\bsit\b/i.test(request))interaction='sit';else if(interact)interaction='toggle';else if(/\bread\b/i.test(request))interaction='read';
+  if(/\bsit\b/i.test(request))interaction='sit';else if(/\bring\b/i.test(request))interaction='ring';else if(/\bwater\b/i.test(request))interaction='water';else if(/\b(open|close)\b/i.test(request))interaction='open';else if(interact)interaction='toggle';else if(/\bread\b/i.test(request))interaction='read';
   if(interaction&&!object.actions.includes(interaction))return {error:`I can approach and inspect ${object.name}, but it does not support ${interaction}.`,candidates:matches};
-  return {step:{action:interaction?'INTERACT_OBJECT':guide?'GUIDE_TO_OBJECT':inspect?'INSPECT_OBJECT':'GO_TO_OBJECT',targetId:object.id,...(interaction?{interaction}:{}),...(interaction==='toggle'&&/\b(on|off)\b/i.test(request)?{state:/\boff\b/i.test(request)?'off':'on'}:{})},candidates:matches};
+  return {step:{action:interaction?'INTERACT_OBJECT':guide?'GUIDE_TO_OBJECT':inspect?'INSPECT_OBJECT':'GO_TO_OBJECT',targetId:object.id,...(interaction?{interaction}:{}),...(interaction==='toggle'&&/\b(on|off)\b/i.test(request)?{state:/\boff\b/i.test(request)?'off':'on'}:{}),...(interaction==='open'?{state:/\bclose\b/i.test(request)?'closed' as const:'open' as const}:{})},candidates:matches};
 }

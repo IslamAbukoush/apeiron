@@ -1,3 +1,5 @@
+import {addWorldActivities} from './world-activities';
+import {createCaretakerAvatar,caretakerAvatar} from './npc-avatar';
 import {WorldRegistry,addBench} from './world-registry';
 import * as THREE from 'three';
 
@@ -91,21 +93,7 @@ export function createWorld() {
     registry.register(canopy,{id:`tree-${i}`,name:`Green tree ${i+1}`,aliases:['tree','green tree'],kind:'tree',color:'green',description:'A tree with a green angular canopy.'});
   }
 
-  const npc = new THREE.Group();
-  npc.position.set(0, 0, -2);
-  npc.userData.interactable = { id: 'caretaker', name: 'The caretaker', kind: 'npc' } satisfies Interactable;
-  const torso = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1.25, 8), materials.cloth);
-  torso.position.y = 0.85;
-  npc.add(torso);
-  const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.23, 1), materials.face);
-  head.position.y = 1.65;
-  npc.add(head);
-  for (const x of [-0.15, 0.15]) {
-    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.3, 0.32), materials.wood);
-    foot.position.set(x, 0.15, 0.06);
-    npc.add(foot);
-  }
-  npc.traverse(object => { if (object instanceof THREE.Mesh) object.castShadow = true; });
+  const npc = createCaretakerAvatar();
   scene.add(npc);
   const npcCollider = new THREE.Box3(new THREE.Vector3(-0.4, 0, -2.4), new THREE.Vector3(0.4, 1.9, -1.6));
   colliders.push(npcCollider);
@@ -124,8 +112,9 @@ export function createWorld() {
   } };
 
   registry.register(marker,{id:'waystone',name:'Weathered waystone',aliases:['waystone','stone','inscription'],kind:'waystone',description:'A weathered waystone. Its inscription reads: Every world begins with a place to stand.',actions:['read']});
-  registry.register(lantern,{id:'lantern',name:'Courtyard lantern',aliases:['lantern','lamp','light'],kind:'lantern',color:'yellow',description:'A lantern on a wooden post.',actions:['toggle']},{state:()=>lamp.get()?'on':'off',interact:()=>{lamp.toggle();return lamp.get()?'The lantern is now lit.':'The lantern is now off.';}});
+  registry.register(lantern,{id:'lantern',name:'Courtyard lantern',aliases:['lantern','lamp','light'],kind:'lantern',color:'yellow',description:'A lantern on a wooden post.',actions:['toggle']},{state:()=>lamp.get()?'on':'off',interact:()=>{lamp.toggle();return lamp.get()?'Lantern state changed to on.':'Lantern state changed to off.';}});
   addBench(scene,colliders,registry);
+  const activities=addWorldActivities(scene,colliders,registry);
 
   scene.add(new THREE.HemisphereLight('#fff2d5', '#65724b', 2));
   const sun = new THREE.DirectionalLight('#ffe1ae', 3);
@@ -143,9 +132,10 @@ export function createWorld() {
   scene.add(debug);
 
   return {
-    scene, colliders, debug, npc, npcCollider, lamp, registry,
+    scene, colliders, debug, npc, npcCollider, lamp, registry,activities,
     navigationColliders: colliders.filter(c => c !== npcCollider),
     dispose() {
+      caretakerAvatar(npc)?.dispose();
       const geometries = new Set<THREE.BufferGeometry>();
       const disposableMaterials = new Set<THREE.Material>();
       scene.traverse(object => {

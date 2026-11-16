@@ -17,5 +17,5 @@ test('LLM contextual repeat jumps and a lantern success message cannot precede i
   await send('Toggle the lantern on');await expect(page.locator('#npc-status')).toHaveAttribute('data-action','INTERACT_OBJECT');
   await expect(page.locator('#npc-status')).toHaveAttribute('data-lantern','false');await expect(page.locator('#npc-subtitle')).not.toContainText('I toggled');
   await expect(page.locator('#npc-status')).toHaveAttribute('data-lantern','true',{timeout:12000});
-  await expect(page.locator('#npc-subtitle')).toContainText('now lit');
+  await expect(page.locator('#npc-subtitle')).toHaveText('');
 });

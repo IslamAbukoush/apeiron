@@ -19,6 +19,7 @@ export class WorldRegistry {
       return {...binding.info,position:{x:p.x,z:p.z},bounds:{minX:box.min.x,maxX:box.max.x,minZ:box.min.z,maxZ:box.max.z},state:binding.state?.()||''};
   }
   get(id:string){const binding=this.bindings.get(id);return binding?this.describe(binding):undefined;}
+  focus(id:string){const binding=this.bindings.get(id);if(!binding)return;binding.mesh.updateWorldMatrix(true,true);const center=new Box3().setFromObject(binding.mesh).getCenter(new Vector3());center.y=Math.min(2.5,Math.max(.3,center.y));return center;}
   interact(id:string,action:WorldInteraction):{message:string;seat?:Vector3}{
     const binding=this.bindings.get(id);if(!binding||!binding.info.actions.includes(action))throw Error('Unsupported interaction');
     return {message:binding.interact?.(action)||binding.info.description,...(action==='sit'&&binding.seat?{seat:binding.seat.clone()}: {})};
@@ -40,5 +41,5 @@ export function addBench(scene:Scene,colliders:Box3[],registry:WorldRegistry,col
   piece(0,.65,0,2.6,.18,1);piece(0,1.12,-.42,2.6,.8,.15);
   for(const x of [-1,1])for(const z of [-.3,.3])piece(x,.3,z,.16,.6,.16);
   colliders.push(new Box3(new Vector3(5.7,0,-.5),new Vector3(8.3,1.6,.5)));
-  registry.register(group,{id:'bench',name:'Wooden bench',aliases:['bench','seat','wooden seat'],kind:'bench',color:colorName(color),description:'A wooden bench with a backrest beside the path.',actions:['sit']},{seat:new Vector3(7,.25,.1),interact:()=> 'I am sitting on the wooden bench.'});
+  registry.register(group,{id:'bench',name:'Wooden bench',aliases:['bench','seat','wooden seat'],kind:'bench',color:colorName(color),description:'A wooden bench with a backrest beside the path.',actions:['sit']},{seat:new Vector3(7,.25,.1),interact:()=> 'Bench seat occupied by NPC; seated posture applied.'});
 }

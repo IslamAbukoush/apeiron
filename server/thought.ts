@@ -8,8 +8,9 @@ import {caretakerInstruction} from './npc-instructions.ts';
 export type Thought = { speech: string; plan: NpcStep[] };
 export function parseThought(value: unknown): Thought {
   const thought=value as Thought;
-  if (!thought || typeof thought.speech!=='string' || !thought.speech.trim() || thought.speech.length>600 ||
+  if (!thought || typeof thought.speech!=='string' || thought.speech.length>600 ||
     !Array.isArray(thought.plan) || thought.plan.length>3 ) throw new Error('Invalid thought');
+  if(!thought.speech.trim()&&!thought.plan.length)throw Error('Empty conversation response');
   return {speech:thought.speech.trim(),plan:parsePlan(thought.plan)};
 }
 export function createThoughtMiddleware(options:{apiKey?:string;model?:string;fetcher?:typeof fetch;limit?:number;textModel?:string;localVoice?:boolean}) {

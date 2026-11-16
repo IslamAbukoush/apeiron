@@ -36,7 +36,7 @@ test('toggle is executable, movement happens before interaction, and completion 
   npc.llmEnabled=true;assert.equal(isActionRequest('Toggle the lantern on'),true);
   await npc.command('Toggle the lantern on',player);assert.equal(npc.action,'INTERACT_OBJECT');assert.equal(world.lamp.get(),false);assert.equal(npc.execution?.status,'running');assert.doesNotMatch(npc.speech,/I toggled/);
   for(let i=0;i<400&&npc.action!=='WAIT';i++)npc.step(.1,player);
-  assert.ok(world.npc.position.distanceTo(initial)>1);assert.equal(world.lamp.get(),true);assert.equal(npc.execution?.status,'completed');assert.match(npc.speech,/lit|on/i);
+  assert.ok(world.npc.position.distanceTo(initial)>1);assert.equal(world.lamp.get(),true);assert.equal(npc.execution?.status,'completed');assert.match(npc.execution!.detail,/on/i);assert.equal(npc.speech,'');
   assert.equal(validateState(npc.snapshot(player)).npc.execution?.status,'completed');npc.dispose();world.dispose();
 });
 
@@ -46,7 +46,7 @@ test('an indirect LLM action executes and a blocked route cannot be covered up b
     const obstacles=[...world.navigationColliders,...(blocked?[new Box3(new Vector3(-5,0,0),new Vector3(0,3,6))]:[])];
     const npc=new Caretaker(world.npc,world.npcCollider,obstacles,world.lamp,(async()=>Response.json({speech:'I have turned it on.',plan:[{action:'INTERACT_OBJECT',targetId:'lantern',interaction:'toggle',state:'on'}]})) as typeof fetch,world.registry);
     npc.llmEnabled=true;await npc.command('It is too dark; a little light would help',player);
-    if(blocked){assert.equal(npc.action,'WAIT');assert.equal(npc.execution?.status,'blocked');assert.match(npc.speech,/clear route/);assert.equal(world.lamp.get(),false);}
+    if(blocked){assert.equal(npc.action,'WAIT');assert.equal(npc.execution?.status,'blocked');assert.match(npc.execution!.detail,/clear route/);assert.equal(npc.speech,'');assert.equal(world.lamp.get(),false);}
     else{assert.equal(npc.action,'INTERACT_OBJECT');for(let i=0;i<400&&npc.action!=='WAIT';i++)npc.step(.1,player);assert.equal(world.lamp.get(),true);}
     npc.dispose();world.dispose();
   }
@@ -55,5 +55,5 @@ test('an indirect LLM action executes and a blocked route cannot be covered up b
 
 test('a speech-only action promise is reported as not started instead of pretending to execute',async()=>{
   const world=createWorld();const npc=new Caretaker(world.npc,world.npcCollider,world.navigationColliders,world.lamp,(async()=>Response.json({speech:'I will do it again.',plan:[]})) as typeof fetch,world.registry);
-  npc.llmEnabled=true;await npc.command('Do it again',{x:0,z:8});assert.match(npc.speech,/not started an action/);assert.equal(npc.action,'WAIT');npc.dispose();world.dispose();
+  npc.llmEnabled=true;await npc.command('Do it again',{x:0,z:8});assert.equal(npc.speech,'');assert.equal(npc.action,'WAIT');npc.dispose();world.dispose();
 });

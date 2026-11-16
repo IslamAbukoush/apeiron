@@ -57,12 +57,35 @@ export function startGame(root: HTMLElement) {
   let chatTyping=false;
   let view:ViewContext={};
   const voice=new GoogleVoice(ui.voiceStatus);
+  let activityAudio:AudioContext|undefined;
+  function playActivitySound(kind:'bell'|'water'|'chest'){
+    activityAudio??=new AudioContext();void activityAudio.resume();
+    const now=activityAudio.currentTime;
+    for(let index=0;index<(kind==='bell'?3:1);index++){
+      const oscillator=activityAudio.createOscillator(),gain=activityAudio.createGain();oscillator.type=kind==='chest'?'triangle':'sine';oscillator.frequency.setValueAtTime(kind==='bell'?880*(index+1):kind==='water'?1100:180,now);
+      if(kind==='water')oscillator.frequency.exponentialRampToValueAtTime(450,now+.35);
+      gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.12/(index+1),now+.01);gain.gain.exponentialRampToValueAtTime(.0001,now+(kind==='bell'?1.5:.4));
+      oscillator.connect(gain);gain.connect(activityAudio.destination);oscillator.start(now);oscillator.stop(now+1.6);
+      oscillator.onended=()=>{oscillator.disconnect();gain.disconnect();};
+    }
+  }
   const microphone=new MicrophoneInput(ui.chatMic,ui.micStatus,text=>{ui.chatInput.value='';void askCaretaker(text,true);});
   let pushToTalk=false;
   let talkKey:string|undefined;
   let talkPointer:number|undefined;
   caretaker.onAudioChunk=pcm=>{if(ui.npcVoice.checked&&!microphone.recording)voice.chunk(pcm);};
   caretaker.onSpeechChunk=showStreamingSpeech;
+  caretaker.onLookReady=captureCaretakerView;
+  function captureCaretakerView(focus:THREE.Vector3):ViewContext{
+    const eye=new THREE.PerspectiveCamera(70,camera.aspect,.05,100);eye.position.copy(world.npc.position);eye.position.y+=1.55;eye.lookAt(focus);eye.updateMatrixWorld(true);
+    world.scene.updateMatrixWorld(true);
+    // Hide the observer's own mesh while taking its eye-level screenshot.
+    let image:string;
+    world.npc.visible=false;try{renderer.render(world.scene,eye);image=captureView(ui.canvas);}finally{world.npc.visible=true;renderer.render(world.scene,camera);}
+    ui.chatImage.src=image;ui.chatPreview.hidden=false;
+    ui.chatImage.alt='View from the caretaker’s eyes after approaching the inspected place';
+    return {image,perspective:'npc'};
+  }
   function logChat(who:string,text:string){
     const line=document.createElement('p');line.textContent=`${who}: ${text}`;ui.chatHistory.append(line);
     while(ui.chatHistory.children.length>60)ui.chatHistory.firstElementChild?.remove();
@@ -78,7 +101,8 @@ export function startGame(root: HTMLElement) {
   }
   function takeView(){
     updateCamera();world.scene.updateMatrixWorld(true);renderer.render(world.scene,camera);
-    view={image:captureView(ui.canvas),target:pointedTarget(camera,world.scene.children,world.registry.limit)};
+    const direction=camera.getWorldDirection(new THREE.Vector3());
+    view={image:captureView(ui.canvas),observer:{x:camera.position.x,y:camera.position.y,z:camera.position.z,dx:direction.x,dy:direction.y,dz:direction.z},target:pointedTarget(camera,world.scene.children,world.registry.limit)};
     ui.chatTarget.textContent=view.target?`Pointing at ${view.target.name}${view.target.ground?' · walkable ground candidate':''}`:'No pointed target';
   }
   function focusChat(){
@@ -101,17 +125,27 @@ export function startGame(root: HTMLElement) {
   ui.chatForm.addEventListener('submit',event=>{event.preventDefault();const text=ui.chatInput.value;ui.chatInput.value='';void askCaretaker(text,true);},{signal});
   ui.npcVoice.addEventListener('change',()=>{if(!ui.npcVoice.checked)voice.stop();},{signal});
   let aiStatus:AiStatus={},thoughtInitialized=false,checkingUsage=false;
+  try{const saved=localStorage.getItem('apeiron-npc-provider');if(saved==='local'||saved==='hybrid')ui.npcProvider.value=saved;}catch{/* Storage may be unavailable. */}
+  caretaker.llmProvider=ui.npcProvider.value as 'local'|'hybrid';
+  let providerRevision=0;
   async function refreshThoughtStatus(){
     if(checkingUsage||signal.aborted)return;checkingUsage=true;
+    const revision=providerRevision;
     try{
-      const r=await fetch('/api/npc/thought/status',{signal});if(!r.ok)throw Error();aiStatus=await r.json();
+      const r=await fetch('/api/npc/thought/status',{signal,headers:{'X-NPC-Provider':ui.npcProvider.value}});if(!r.ok)throw Error();const status=await r.json();if(revision!==providerRevision)return;aiStatus=status;
       ui.npcLLM.disabled=!aiStatus.configured;
       if(!thoughtInitialized){ui.npcLLM.checked=!!aiStatus.configured;caretaker.llmEnabled=!!aiStatus.configured;thoughtInitialized=true;}
       caretaker.autonomyInterval=aiStatus.provider==='groq'?45:12;
     }catch{if(!thoughtInitialized)ui.npcLLM.disabled=true;}
-    finally{checkingUsage=false;}
+    finally{if(revision===providerRevision)checkingUsage=false;}
   }
   void refreshThoughtStatus();const usageTimer=setInterval(()=>void refreshThoughtStatus(),5000);
+  ui.npcProvider.addEventListener('change',()=>{
+    providerRevision++;checkingUsage=false;voice.stop();microphone.cancel();streamingChatLine=undefined;
+    caretaker.setLlmProvider(ui.npcProvider.value as 'local'|'hybrid');
+    try{localStorage.setItem('apeiron-npc-provider',ui.npcProvider.value);}catch{/* Keep the current selection without persistence. */}
+    aiStatus={provider:ui.npcProvider.value==='local'?'local':'groq',configured:true};void refreshThoughtStatus();
+  },{signal});
   ui.npcLLM.addEventListener('change',()=>{caretaker.llmEnabled=ui.npcLLM.checked;},{signal});
   void fetch('/api/npc/status',{signal}).then(r => r.json()).then(status => {
     serviceStatus = status.configured ? `${status.model} · ${status.remaining} requests available this server session. Off until enabled.`
@@ -202,17 +236,11 @@ export function startGame(root: HTMLElement) {
     ui.npcFeedback.textContent = caretaker.source;
     if (item.kind === 'npc') {
       ui.speech.textContent = caretaker.speech;
-      const replies = [
-        ['Where am I?', definition ? `${definition.name}. Your wish was: “${definition.prompt}”` : 'An old courtyard at the edge of a world still taking shape. For now, these walls are its boundaries.'],
-        ['What can I explore?', definition ? `${definition.summary} Follow the path past me to the landmark, or wander through the groves. The waystone beside the path records your seed.` : 'Follow the paths, walk beneath the arch, and try the low stone platforms. There is a waystone beside the southern path.'],
-        ['Who are you?', 'The caretaker. I keep this place until its next story arrives.'],
-      ];
-      for (const [question, answer] of replies) {
+      for (const question of ['Where am I?','What can I explore?','Who are you?']) {
         const button = document.createElement('button');
         button.textContent = question;
         button.addEventListener('click', () => {
-          if(caretaker.llmEnabled) void askCaretaker(question);
-          else {caretaker.say(answer);ui.speech.textContent=answer;}
+          void askCaretaker(question);
         });
         ui.answers.append(button);
       }
@@ -223,9 +251,17 @@ export function startGame(root: HTMLElement) {
     } else {
       if (item.id === 'lantern') {
         world.lamp.toggle();
-        ui.speech.textContent = world.lamp.get() ? 'You light the courtyard lantern.' : 'You put out the courtyard lantern.';
+        ui.speech.textContent = `Lantern: ${world.lamp.get()?'on':'off'}`;
       } else {
       const object=world.registry.get(item.id);ui.speech.textContent=object?`${object.description}${object.state?` Current state: ${object.state}.`:''}`:'There is nothing to inspect here.';
+      if(object)for(const action of object.actions){
+        if(action==='read')continue;
+        const button=document.createElement('button');button.textContent=action==='open'?'Open / close chest':action==='water'?'Water flowers':action==='ring'?'Ring bell':action==='sit'?'Ask the caretaker to sit':action;
+        button.addEventListener('click',()=>{
+          if(action==='sit'){void askCaretaker(`Sit on the ${object.name}`);return;}
+          const result=world.registry.interact(object.id,action);ui.speech.textContent=`${result.message} State: ${world.registry.get(object.id)?.state||''}`;
+        });ui.answers.append(button);
+      }
       }
     }
     ui.conversation.showModal();
@@ -240,10 +276,11 @@ export function startGame(root: HTMLElement) {
     caretaker.dispose();voice.stop();microphone.cancel();pushToTalk=false;
     caretaker=new Caretaker(world.npc,world.npcCollider,world.navigationColliders,world.lamp,undefined,world.registry);
     caretaker.aiEnabled=ai;caretaker.llmEnabled=llm;
+    caretaker.llmProvider=ui.npcProvider.value as 'local'|'hybrid';
     caretaker.autonomyInterval=aiStatus.provider==='groq'?45:12;
     caretaker.onAudioChunk=pcm=>{if(ui.npcVoice.checked&&!microphone.recording)voice.chunk(pcm);};
     caretaker.onSpeechChunk=showStreamingSpeech;
-    if(definition)caretaker.say(`Welcome to ${definition.name}. ${definition.summary}`);
+    caretaker.onLookReady=captureCaretakerView;
     view={};streamingChatLine=undefined;ui.chatHistory.replaceChildren();
     previous.dispose();
     player.reset(); yaw = 0; pitch = 0; accumulator = 0; target = null;
@@ -414,6 +451,7 @@ export function startGame(root: HTMLElement) {
       accumulator += dt;
       while (accumulator >= fixedStep) {
         caretaker.step(fixedStep,player.position);
+        world.activities.update(fixedStep);
         player.step(fixedStep, {
           forward: Number(keys.has('KeyW')) - Number(keys.has('KeyS')),
           right: Number(keys.has('KeyD')) - Number(keys.has('KeyA')),
@@ -426,9 +464,12 @@ export function startGame(root: HTMLElement) {
       updateCamera();
       target = findInteraction(camera, world.scene.children);
       ui.prompt.hidden = !target;
-      ui.prompt.textContent = target ? `E · ${target.kind === 'npc' ? 'Talk to' : 'Read'} ${target.name}` : '';
+      const actions=target?world.registry.get(target.id)?.actions:undefined;
+      ui.prompt.textContent = target ? `E · ${target.kind === 'npc' ? 'Talk to' : actions?.some(action=>action!=='read')?'Use':actions?.includes('read')?'Read':'Inspect'} ${target.name}` : '';
     }
     renderer.render(world.scene, camera);
+    if(!playing&&ui.conversation.open)world.activities.update(dt);
+    for(const event of world.activities.events.splice(0))playActivitySound(event);
     elapsed += dt; frameCount++;
     if (elapsed >= 0.4) {
       ui.npcStatus.textContent = `${caretaker.activity} · ${caretaker.source} ${caretaker.thoughtStatus}`;
@@ -437,11 +478,15 @@ export function startGame(root: HTMLElement) {
       ui.aiUsageHud.textContent=ui.aiUsageMenu.textContent=formatAiUsage(aiStatus);
       if(speechVersion!==caretaker.speechVersion){
         speechVersion=caretaker.speechVersion;
+        if(caretaker.speech.trim()){
           if(streamingChatLine){streamingChatLine.textContent=`Caretaker: ${caretaker.speech}`;streamingChatLine=undefined;}
           else logChat('Caretaker',caretaker.speech);
           if(ui.npcVoice.checked && !microphone.recording && !caretaker.replyStreamed)void voice.speak(caretaker.speech,caretaker.replyAudio);
+        }
       }
       ui.npcStatus.dataset.action = caretaker.action;
+      ui.npcStatus.dataset.avatar=String(world.npc.userData.avatarState||'');
+      ui.npcStatus.dataset.animation=String(world.npc.userData.avatarAnimation||'');
       ui.npcStatus.dataset.target = caretaker.targetId;
       ui.npcStatus.dataset.x = world.npc.position.x.toFixed(2);
       ui.npcStatus.dataset.y = world.npc.position.y.toFixed(2);
@@ -466,6 +511,7 @@ export function startGame(root: HTMLElement) {
     clearInterval(usageTimer);
     caretaker.dispose();
     voice.stop();
+    void activityAudio?.close();
     microphone.suspend();
     if('speechSynthesis' in window)speechSynthesis.cancel();
     if (document.pointerLockElement === ui.canvas) document.exitPointerLock();

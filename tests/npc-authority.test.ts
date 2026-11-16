@@ -40,12 +40,12 @@ test('LLM plan overrides an earlier reflex, and a late reflex cannot override th
   }
 });
 
-test('follow acknowledgement replaces an old errand immediately and survives an LLM outage',async()=>{
+test('follow clears an old errand and an LLM outage never fabricates dialogue',async()=>{
   const world=createWorld();let fail!:(e:Error)=>void;
   const npc=new Caretaker(world.npc,world.npcCollider,world.navigationColliders,world.lamp,(()=>new Promise<Response>((_,reject)=>fail=reject)) as typeof fetch,world.registry);
   npc.llmEnabled=true;npc.say('I will lead you to the waystone.');
   const pending=npc.command('Come here',new Vector3(0,0,8));
-  assert.equal(npc.action,'FOLLOW_PLAYER');assert.match(npc.speech,/I will follow you/);
+  assert.equal(npc.action,'FOLLOW_PLAYER');assert.equal(npc.speech,'');
   const version=npc.speechVersion;fail(Error('offline'));await pending;
   assert.equal(npc.action,'FOLLOW_PLAYER');assert.equal(npc.speechVersion,version);assert.match(npc.thoughtStatus,/offline/);
   npc.dispose();world.dispose();
