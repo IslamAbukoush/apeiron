@@ -4,7 +4,7 @@ import {needsVisualContext,type LocalVision,type Perception} from './local-visio
 import {LEGACY_ACTIONS,parsePlan} from '../src/game/npc-contract.ts';
 
 export const GROQ_MODEL='qwen/qwen3.8-27b';
-function strictSchema(value:any){
+export function strictSchema(value:any){
   const choices=value.properties.plan.items.oneOf||[value.properties.plan.items];
   const actions=choices.flatMap((choice:any)=>choice.enum||choice.properties?.action.enum||[]);
   const ids=choices.find((choice:any)=>choice.properties?.targetId)?.properties.targetId.enum||[];

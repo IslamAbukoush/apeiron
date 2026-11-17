@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './fixtures';
 
 test('real local vision, NPC commands and local speech work together',async({page})=>{
   const status=await(await page.request.get('/api/npc/thought/status')).json();

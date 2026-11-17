@@ -55,7 +55,7 @@ input[type="range"], select { width: 100%; accent-color: #d9c596; }
 #npc-send { margin-top: 10px; }
 #npc-command label { margin-top: 12px; }
 #npc-subtitle { position:absolute; bottom:70px; left:20%; width:60%; text-align:center; font-size:16px; }
-#chat {position:fixed;bottom:65px;right:20px;width:min(350px,calc(100vw - 40px));padding:14px;background:#242423;border:1px solid #62625f;border-radius:6px;font-size:13px;}
+#chat {max-height:calc(100dvh - 90px);overflow-y:auto;overscroll-behavior:contain;position:fixed;bottom:65px;right:20px;width:min(350px,calc(100vw - 40px));padding:14px;background:#242423;border:1px solid #62625f;border-radius:6px;font-size:13px;}
 .chat-heading {display:flex;justify-content:space-between;align-items:center;gap:8px;}
 #chat button {padding:6px 10px;font-size:12px;}
 #chat-history {max-height:180px;overflow-y:auto;margin-top:10px;}
@@ -72,3 +72,10 @@ input[type="range"], select { width: 100%; accent-color: #d9c596; }
 #chat-mic[aria-pressed="true"] {border-color:#d9c596;background:#454338;}
 [hidden] { display: none !important; }
 @media (max-width: 600px) { .controls { padding: 0 16px; line-height: 2; } .location { top: 16px; left: 16px; } dialog { padding: 24px; } }
+
+.settings-group {margin:24px 0 0;padding:16px 0;border:0;border-top:1px solid #51514c;min-width:0;}
+.settings-group legend {padding:0 10px 0 0;font-size:15px;font-weight:600;}
+.settings-group .checkbox {margin:12px 0;align-items:center;}
+.settings-group .note {margin:8px 0 12px;}
+#npc-debug-panel {position:fixed;left:20px;top:150px;width:min(460px,calc(100vw - 40px));max-height:calc(100dvh - 230px);overflow:auto;padding:12px;background:#242423;border:1px solid #62625f;border-radius:6px;z-index:3;font-size:12px;}
+#npc-debug-output {white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.6 monospace;margin:8px 0 0;}

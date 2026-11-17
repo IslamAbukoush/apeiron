@@ -57,6 +57,7 @@ export function startGame(root: HTMLElement) {
   let chatTyping=false;
   let view:ViewContext={};
   const voice=new GoogleVoice(ui.voiceStatus);
+  const voiceForward=new THREE.Vector3(),voiceUp=new THREE.Vector3(),voiceSpeaker=new THREE.Vector3();
   let activityAudio:AudioContext|undefined;
   function playActivitySound(kind:'bell'|'water'|'chest'){
     activityAudio??=new AudioContext();void activityAudio.resume();
@@ -99,14 +100,14 @@ export function startGame(root: HTMLElement) {
     ui.npcSubtitle.textContent=text;
     if(ui.conversation.open && ui.speaker.textContent==='The caretaker')ui.speech.textContent=text;
   }
-  function takeView(){
-    updateCamera();world.scene.updateMatrixWorld(true);renderer.render(world.scene,camera);
+  function takeView(includeImage=ui.chatView.checked){
+    updateCamera();world.scene.updateMatrixWorld(true);if(includeImage)renderer.render(world.scene,camera);
     const direction=camera.getWorldDirection(new THREE.Vector3());
-    view={image:captureView(ui.canvas),observer:{x:camera.position.x,y:camera.position.y,z:camera.position.z,dx:direction.x,dy:direction.y,dz:direction.z},target:pointedTarget(camera,world.scene.children,world.registry.limit)};
+    view={...(includeImage?{image:captureView(ui.canvas)}:{}),observer:{x:camera.position.x,y:camera.position.y,z:camera.position.z,dx:direction.x,dy:direction.y,dz:direction.z},target:pointedTarget(camera,world.scene.children,world.registry.limit)};
     ui.chatTarget.textContent=view.target?`Pointing at ${view.target.name}${view.target.ground?' · walkable ground candidate':''}`:'No pointed target';
   }
   function focusChat(){
-    takeView();chatTyping=true;keys.clear();document.exitPointerLock();ui.chatInput.focus();
+    takeView(false);chatTyping=true;keys.clear();document.exitPointerLock();ui.chatInput.focus();
   }
   ui.chatInput.addEventListener('pointerdown',()=>{if(!chatTyping)focusChat();},{signal});
   ui.chatClose.addEventListener('click',()=>{microphone.cancel();chatTyping=false;ui.chatInput.blur();void resume();},{signal});
@@ -125,33 +126,62 @@ export function startGame(root: HTMLElement) {
   ui.chatForm.addEventListener('submit',event=>{event.preventDefault();const text=ui.chatInput.value;ui.chatInput.value='';void askCaretaker(text,true);},{signal});
   ui.npcVoice.addEventListener('change',()=>{if(!ui.npcVoice.checked)voice.stop();},{signal});
   let aiStatus:AiStatus={},thoughtInitialized=false,checkingUsage=false;
-  try{const saved=localStorage.getItem('apeiron-npc-provider');if(saved==='local'||saved==='hybrid')ui.npcProvider.value=saved;}catch{/* Storage may be unavailable. */}
-  caretaker.llmProvider=ui.npcProvider.value as 'local'|'hybrid';
+  type CloudModel={provider:string;model:string;vision:boolean;configured:boolean};
+  let cloudModels:CloudModel[]=[];
+  try{
+    const saved=localStorage.getItem('apeiron-npc-provider');if(saved==='local'||saved==='hybrid'||saved==='auto'||saved==='manual')ui.npcProvider.value=saved;
+    const selection=JSON.parse(localStorage.getItem('apeiron-npc-cloud-model')||'null');
+    if(selection&&['gemini','groq','anyrouter'].includes(selection.provider)&&typeof selection.model==='string'){
+      ui.npcCloudProvider.value=selection.provider;ui.npcCloudModel.add(new Option(selection.model,selection.model));
+    }
+  }catch{/* Storage may be unavailable. */}
+  caretaker.llmProvider=ui.npcProvider.value as 'local'|'hybrid'|'auto'|'manual';
+  caretaker.cloudProvider=ui.npcCloudProvider.value;caretaker.cloudModel=ui.npcCloudModel.value;
+  ui.npcManualSettings.hidden=ui.npcProvider.value!=='manual';
   let providerRevision=0;
   async function refreshThoughtStatus(){
-    if(checkingUsage||signal.aborted)return;checkingUsage=true;
+    if(checkingUsage||signal.aborted||document.hidden)return;checkingUsage=true;
     const revision=providerRevision;
     try{
-      const r=await fetch('/api/npc/thought/status',{signal,headers:{'X-NPC-Provider':ui.npcProvider.value}});if(!r.ok)throw Error();const status=await r.json();if(revision!==providerRevision)return;aiStatus=status;
+      const r=await fetch('/api/npc/thought/status',{signal,headers:caretaker.llmHeaders()});if(!r.ok)throw Error();const status=await r.json();if(revision!==providerRevision)return;aiStatus=status;
       ui.npcLLM.disabled=!aiStatus.configured;
       if(!thoughtInitialized){ui.npcLLM.checked=!!aiStatus.configured;caretaker.llmEnabled=!!aiStatus.configured;thoughtInitialized=true;}
-      caretaker.autonomyInterval=aiStatus.provider==='groq'?45:12;
+      caretaker.autonomyInterval=aiStatus.provider==='local'?12:45;
     }catch{if(!thoughtInitialized)ui.npcLLM.disabled=true;}
     finally{if(revision===providerRevision)checkingUsage=false;}
   }
   void refreshThoughtStatus();const usageTimer=setInterval(()=>void refreshThoughtStatus(),5000);
-  ui.npcProvider.addEventListener('change',()=>{
+  function updateCloudModels(){
+    const previous=ui.npcCloudModel.value,models=cloudModels.filter(m=>m.provider===ui.npcCloudProvider.value);
+    ui.npcCloudModel.replaceChildren(...models.map(m=>new Option(`${m.model}${m.vision?' (vision)':''}`,m.model)));
+    if(models.some(m=>m.model===previous))ui.npcCloudModel.value=previous;
+    ui.npcCloudModel.disabled=!models.length;
+    const current=models.find(m=>m.model===ui.npcCloudModel.value);
+    ui.npcModelNote.textContent=!current?'Model catalog unavailable.':!current.configured?'No API key configured for this provider.':`${current.vision?'Accepts game screenshots.':'Text only; choose a vision model for visual questions.'} Manual mode stays on this model.`;
+  }
+  function changeThoughtSelection(){
     providerRevision++;checkingUsage=false;voice.stop();microphone.cancel();streamingChatLine=undefined;
-    caretaker.setLlmProvider(ui.npcProvider.value as 'local'|'hybrid');
-    try{localStorage.setItem('apeiron-npc-provider',ui.npcProvider.value);}catch{/* Keep the current selection without persistence. */}
-    aiStatus={provider:ui.npcProvider.value==='local'?'local':'groq',configured:true};void refreshThoughtStatus();
-  },{signal});
+    ui.npcManualSettings.hidden=ui.npcProvider.value!=='manual';
+    caretaker.setLlmProvider(ui.npcProvider.value as 'local'|'hybrid'|'auto'|'manual');
+    caretaker.cloudProvider=ui.npcCloudProvider.value;caretaker.cloudModel=ui.npcCloudModel.value;
+    try{localStorage.setItem('apeiron-npc-provider',ui.npcProvider.value);localStorage.setItem('apeiron-npc-cloud-model',JSON.stringify({provider:caretaker.cloudProvider,model:caretaker.cloudModel}));}catch{/* Keep the current selection without persistence. */}
+    aiStatus={provider:ui.npcProvider.value==='local'?'local':'cloud',configured:true};void refreshThoughtStatus();
+  }
+  ui.npcProvider.addEventListener('change',changeThoughtSelection,{signal});
+  ui.npcCloudProvider.addEventListener('change',()=>{updateCloudModels();changeThoughtSelection();},{signal});
+  ui.npcCloudModel.addEventListener('change',()=>{updateCloudModels();changeThoughtSelection();},{signal});
+  void fetch('/api/npc/thought/models',{signal}).then(r=>{if(!r.ok)throw Error();return r.json();}).then(data=>{
+    cloudModels=data.models;updateCloudModels();caretaker.cloudProvider=ui.npcCloudProvider.value;caretaker.cloudModel=ui.npcCloudModel.value;
+    if(caretaker.llmProvider==='manual'){providerRevision++;checkingUsage=false;void refreshThoughtStatus();}
+  }).catch(()=>{ui.npcModelNote.textContent='Model catalog unavailable. Reload to retry.';});
+  ui.npcDebug.addEventListener('change',()=>{ui.npcDebugPanel.hidden=!ui.npcDebug.checked;},{signal});
   ui.npcLLM.addEventListener('change',()=>{caretaker.llmEnabled=ui.npcLLM.checked;},{signal});
   void fetch('/api/npc/status',{signal}).then(r => r.json()).then(status => {
-    serviceStatus = status.configured ? `${status.model} · ${status.remaining} requests available this server session. Off until enabled.`
+    serviceStatus = status.configured ? `${status.model} · ${status.remaining} requests available this server session. Quick reactions enabled when checked.`
       : 'No API key configured. Local behavior is active.';
     ui.npcService.textContent = serviceStatus;
     ui.npcAI.disabled = !status.configured;
+    ui.npcAI.checked=!!status.configured;caretaker.setAI(!!status.configured);
   }).catch(() => { if (!signal.aborted) ui.npcService.textContent = 'Decision server unavailable. Local behavior is active.'; });
 
   async function askCaretaker(message: string,_fromChat=false) {
@@ -276,12 +306,13 @@ export function startGame(root: HTMLElement) {
     caretaker.dispose();voice.stop();microphone.cancel();pushToTalk=false;
     caretaker=new Caretaker(world.npc,world.npcCollider,world.navigationColliders,world.lamp,undefined,world.registry);
     caretaker.aiEnabled=ai;caretaker.llmEnabled=llm;
-    caretaker.llmProvider=ui.npcProvider.value as 'local'|'hybrid';
-    caretaker.autonomyInterval=aiStatus.provider==='groq'?45:12;
+    caretaker.llmProvider=ui.npcProvider.value as 'local'|'hybrid'|'auto'|'manual';
+    caretaker.cloudProvider=ui.npcCloudProvider.value;caretaker.cloudModel=ui.npcCloudModel.value;
+    caretaker.autonomyInterval=aiStatus.provider==='local'?12:45;
     caretaker.onAudioChunk=pcm=>{if(ui.npcVoice.checked&&!microphone.recording)voice.chunk(pcm);};
     caretaker.onSpeechChunk=showStreamingSpeech;
     caretaker.onLookReady=captureCaretakerView;
-    view={};streamingChatLine=undefined;ui.chatHistory.replaceChildren();
+    view={};speechVersion=caretaker.speechVersion;streamingChatLine=undefined;ui.chatHistory.replaceChildren();
     previous.dispose();
     player.reset(); yaw = 0; pitch = 0; accumulator = 0; target = null;
     entered = false; ready = true;
@@ -444,7 +475,7 @@ export function startGame(root: HTMLElement) {
   resize();
   updateCamera();
   renderer.setAnimationLoop((time: number) => {
-    if (contextLost) return;
+    if (contextLost||document.hidden){lastTime=time;return;}
     const dt = Math.min(Math.max((time - lastTime) / 1000, 0), 0.1);
     lastTime = time;
     if (playing) {
@@ -467,15 +498,12 @@ export function startGame(root: HTMLElement) {
       const actions=target?world.registry.get(target.id)?.actions:undefined;
       ui.prompt.textContent = target ? `E · ${target.kind === 'npc' ? 'Talk to' : actions?.some(action=>action!=='read')?'Use':actions?.includes('read')?'Read':'Inspect'} ${target.name}` : '';
     }
+    camera.getWorldDirection(voiceForward);voiceUp.setFromMatrixColumn(camera.matrixWorld,1);
+    voiceSpeaker.copy(world.npc.position);voiceSpeaker.y+=1.55;
+    voice.setSpatialPose(camera.position,voiceForward,voiceUp,voiceSpeaker);
     renderer.render(world.scene, camera);
     if(!playing&&ui.conversation.open)world.activities.update(dt);
     for(const event of world.activities.events.splice(0))playActivitySound(event);
-    elapsed += dt; frameCount++;
-    if (elapsed >= 0.4) {
-      ui.npcStatus.textContent = `${caretaker.activity} · ${caretaker.source} ${caretaker.thoughtStatus}`;
-      ui.npcSubtitle.textContent=caretaker.speech;
-      ui.chatVision.textContent=caretaker.visionStatus;
-      ui.aiUsageHud.textContent=ui.aiUsageMenu.textContent=formatAiUsage(aiStatus);
       if(speechVersion!==caretaker.speechVersion){
         speechVersion=caretaker.speechVersion;
         if(caretaker.speech.trim()){
@@ -484,6 +512,13 @@ export function startGame(root: HTMLElement) {
           if(ui.npcVoice.checked && !microphone.recording && !caretaker.replyStreamed)void voice.speak(caretaker.speech,caretaker.replyAudio);
         }
       }
+    elapsed += dt; frameCount++;
+    if (elapsed >= 0.4) {
+      ui.npcStatus.textContent = `${caretaker.activity} · ${caretaker.source} ${caretaker.thoughtStatus}`;
+      ui.npcSubtitle.textContent=caretaker.speech;
+      if(ui.npcDebug.checked)ui.npcDebugOutput.textContent=caretaker.debugSummary();
+      ui.chatVision.textContent=caretaker.visionStatus;
+      ui.aiUsageHud.textContent=formatAiUsage(aiStatus);ui.aiUsageMenu.textContent=formatAiUsage(aiStatus,Date.now(),true);
       ui.npcStatus.dataset.action = caretaker.action;
       ui.npcStatus.dataset.avatar=String(world.npc.userData.avatarState||'');
       ui.npcStatus.dataset.animation=String(world.npc.userData.avatarAnimation||'');
@@ -496,7 +531,7 @@ export function startGame(root: HTMLElement) {
       ui.npcAI.checked = caretaker.aiEnabled;
       ui.npcSend.disabled = false;
       ui.npcService.textContent = caretaker.source === 'Local behavior' ? serviceStatus : caretaker.source;
-      ui.diagnostics.textContent = [
+      if(!ui.diagnostics.hidden)ui.diagnostics.textContent = [
         `${Math.round(frameCount / elapsed)} FPS · ${(elapsed * 1000 / frameCount).toFixed(1)} ms/frame`,
         `Draw calls ${renderer.info.render.calls} · Triangles ${renderer.info.render.triangles.toLocaleString()}`,
         `Position ${player.position.toArray().map(n => n.toFixed(2)).join(', ')}`,
@@ -510,7 +545,7 @@ export function startGame(root: HTMLElement) {
     events.abort();
     clearInterval(usageTimer);
     caretaker.dispose();
-    voice.stop();
+    voice.dispose();
     void activityAudio?.close();
     microphone.suspend();
     if('speechSynthesis' in window)speechSynthesis.cancel();

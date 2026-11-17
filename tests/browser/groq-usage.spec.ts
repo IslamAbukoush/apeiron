@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './fixtures';
 test('Groq allowance is visible in game and pause menu and refreshes after a reply',async({page})=>{
   let remaining=998;
   await page.route('**/api/npc/status',r=>r.fulfill({json:{configured:false}}));

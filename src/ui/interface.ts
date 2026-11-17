@@ -11,6 +11,7 @@ export function createInterface(root: HTMLElement) {
       <div class="controls"><kbd>W A S D</kbd> Move <kbd>Space</kbd> Jump <kbd>E</kbd> Interact <kbd>T</kbd> Chat <kbd>Esc</kbd> Pause</div>
     </div>
     <pre id="diagnostics" hidden></pre>
+    <section id="npc-debug-panel" aria-label="NPC activity debugger" hidden><strong>NPC activity</strong><pre id="npc-debug-output"></pre></section>
     <section id="chat" aria-label="Caretaker chat" hidden>
       <div class="chat-heading">Caretaker chat <button id="chat-close" type="button">Return to game</button></div>
       <div id="chat-history" role="log" aria-live="polite"></div>
@@ -50,23 +51,37 @@ export function createInterface(root: HTMLElement) {
       <button id="new-world" class="secondary" hidden>Create another world</button>
       <button id="playground" class="secondary">Enter original playground</button>
 
-      <label class="checkbox"><input id="npc-ai" type="checkbox" /> Use decision model for the caretaker</label>
+      <fieldset class="settings-group"><legend>NPC behavior</legend>
+      <label class="checkbox"><input id="npc-ai" type="checkbox" checked /> Use decision model for the caretaker</label>
       <label class="checkbox"><input id="npc-llm" type="checkbox" /> NPC conversation and planning</label>
       <label for="npc-provider">Conversation and planning model</label>
-      <select id="npc-provider"><option value="hybrid">Hybrid: local vision + Groq</option><option value="local">Fully local: vision + conversation + planning</option></select>
-      <p class="note">The decision model above is independent. Voice and microphone recognition run locally.</p>
-      <label class="checkbox"><input id="npc-voice" type="checkbox" /> NPC voice replies</label>
+      <select id="npc-provider"><option value="auto">Automatic: Gemini, Groq, AnyRouter free</option><option value="manual">Manual: choose provider and model</option><option value="hybrid">Hybrid: local vision + Groq</option><option value="local">Fully local: vision + conversation + planning</option></select>
+      <div id="npc-manual-settings" hidden>
+        <label for="npc-cloud-provider">AI provider</label>
+        <select id="npc-cloud-provider"><option value="gemini">Gemini</option><option value="groq">Groq</option><option value="anyrouter">AnyRouter (free routes)</option></select>
+        <label for="npc-cloud-model">AI model</label>
+        <select id="npc-cloud-model" aria-describedby="npc-model-note"></select>
+        <p id="npc-model-note" class="note" role="status">Loading models…</p>
+      </div>
+      <p class="note">The decision model handles quick reactions. The conversation model handles dialogue and planned actions.</p>
+      </fieldset>
+      <fieldset class="settings-group"><legend>Voice and microphone</legend>
+      <label class="checkbox"><input id="npc-voice" type="checkbox" checked /> NPC voice replies</label>
       <p class="note">Local voice runs on your CPU. Text appears before speech is ready.</p>
+      <p class="note">Hold V to speak; release to send. Voice comes from the NPC?s position.</p>
+      </fieldset>
       <p id="npc-service" class="note" role="status">Checking decision service…</p>
       <details><summary>AI model and usage limits</summary><p id="ai-usage-menu" class="ai-usage">Checking AI usage…</p></details>
       <div class="bindings"><p><kbd>W A S D</kbd> Move · <kbd>Mouse</kbd> Look</p>
       <p><kbd>Shift</kbd> Run · <kbd>Space</kbd> Jump · <kbd>E</kbd> Interact</p>
       <p><kbd>Esc</kbd> Pause · <kbd>F3</kbd> Diagnostics</p></div>
-      <details><summary>Settings</summary>
+      <details class="settings-group"><summary>Settings</summary>
         <label for="sensitivity">Mouse sensitivity <output id="sensitivity-value">1.0</output></label>
         <input id="sensitivity" type="range" min="0.3" max="2" step="0.1" value="1" />
         <label for="quality">Rendering quality</label>
         <select id="quality"><option value="low">Low — no shadows</option><option value="medium" selected>Medium</option><option value="high">High</option></select>
+        <label class="checkbox"><input id="npc-debug" type="checkbox" /> Show NPC activity debugger</label>
+        <p class="note">Requests, returned plans and execution results. No private model reasoning is shown.</p>
         <label class="checkbox"><input id="colliders" type="checkbox" /> Show collision bounds</label>
         <button id="reset">Return to spawn</button>
       </details>
@@ -92,10 +107,12 @@ export function createInterface(root: HTMLElement) {
     chatMic:get<HTMLButtonElement>('chat-mic'),micStatus:get('mic-status'),
     chatForm:get<HTMLFormElement>('chat-form'),chatInput:get<HTMLInputElement>('chat-input'),chatView:get<HTMLInputElement>('chat-view'),chatClose:get<HTMLButtonElement>('chat-close'),voiceStatus:get('voice-status'),
     hud: get('hud'), prompt: get('prompt'), diagnostics: get('diagnostics'),
+    npcDebug:get<HTMLInputElement>('npc-debug'),npcDebugPanel:get('npc-debug-panel'),npcDebugOutput:get('npc-debug-output'),
     npcStatus: get('npc-status'), npcAI: get<HTMLInputElement>('npc-ai'), npcService: get('npc-service'),
     aiUsageHud:get('ai-usage-hud'),aiUsageMenu:get('ai-usage-menu'),
     npcLLM:get<HTMLInputElement>('npc-llm'),npcVoice:get<HTMLInputElement>('npc-voice'),npcSubtitle:get('npc-subtitle'),
     npcProvider:get<HTMLSelectElement>('npc-provider'),
+    npcManualSettings:get('npc-manual-settings'),npcCloudProvider:get<HTMLSelectElement>('npc-cloud-provider'),npcCloudModel:get<HTMLSelectElement>('npc-cloud-model'),npcModelNote:get('npc-model-note'),
     npcCommand: get<HTMLFormElement>('npc-command'), npcMessage: get<HTMLInputElement>('npc-message'),
     npcSend: get<HTMLButtonElement>('npc-send'), npcFeedback: get('npc-feedback'),
     menu: get<HTMLDialogElement>('menu'), title: get('menu-title'), description: get('menu-description'),

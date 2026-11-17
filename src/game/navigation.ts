@@ -57,12 +57,13 @@ export class Navigation {
       const p = {x:origin.x+x/2,z:origin.z+z/2};
       if (this.clear(start,p)) { queue.push(p); previous.set(key(p),null); }
     }
+    const endKey=key(end);
     for (let i=0; i<queue.length; i++) {
       const p = queue[i];
-      if (key(p) === key(end)) {
+      if (key(p) === endKey) {
         const route = [p]; let parent = previous.get(key(p));
-        while (parent) { route.unshift(parent); parent = previous.get(key(parent)); }
-        return route;
+        while (parent) { route.push(parent); parent = previous.get(key(parent)); }
+        return route.reverse();
       }
       for (const next of this.neighbors(p)) {
         if (!previous.has(key(next))) { previous.set(key(next),p); queue.push(next); }

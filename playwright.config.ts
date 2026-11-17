@@ -5,6 +5,7 @@ export default defineConfig({
   timeout: 30000,
   workers: 1,
   use: {
+    headless: true,
     baseURL: 'http://127.0.0.1:5174',
     channel: 'chrome',
     viewport: { width: 1280, height: 800 },

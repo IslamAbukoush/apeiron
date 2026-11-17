@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './fixtures';
 test('textured monk loads, animates, interacts and replaces the NPC in every world theme',async({page})=>{
   test.setTimeout(60000);const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/api/npc/status',r=>r.fulfill({json:{configured:false}}));await page.route('**/api/npc/thought/status',r=>r.fulfill({json:{configured:false}}));

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 test.beforeEach(async({page})=>{
   await page.route('**/api/npc/thought/status',route=>route.fulfill({json:{configured:false}}));
 });

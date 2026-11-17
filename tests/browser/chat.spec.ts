@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './fixtures';
 
 test('T opens remote chat, sends a marked screenshot and target, and preserves replies',async({page})=>{
   let payload:any;

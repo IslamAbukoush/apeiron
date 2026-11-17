@@ -11,29 +11,38 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite, normally http://127.0.0.1:5173. Click **Enter playground** to capture the mouse. A desktop browser with WebGL 2 and a keyboard/mouse is required. Local NPC behavior needs no keys or downloaded assets. Conversation and vision default to local Qwen3.5-2B; speech uses local Paradee. The optional fast decision API remains Google AI Studio.
+Open the local URL printed by Vite, normally http://127.0.0.1:5173. Click **Enter playground** to capture the mouse. A desktop browser with WebGL 2 and a keyboard/mouse is required. Local NPC behavior needs no keys or downloaded assets. Conversation defaults to **Automatic: Gemini, Groq, AnyRouter free** for new browser profiles; existing saved selections are preserved. Speech uses local Paradee. The optional fast decision API remains Google AI Studio.
+
+The pause menu offers **Automatic** failover, **Manual** provider/model selection,
+**Hybrid** local vision with Groq, and **Fully local** conversation/vision. Manual
+selection persists across reloads and worlds; it stays on the chosen model.
+The usage display reports active models and cooldowns. See [cloud failover and
+model choices](docs/CLOUD_FAILOVER.md) for setup, free-route safeguards and limits.
 
 ## Vision and Google decisions
 
 The active decision provider is now **Google Gemini Decision 1** through
 `POST /v1beta/decisions`, using the server-only `GEMINI_API_KEY` when its separate checkbox is enabled. Local conversation needs no key.
-AnyRouter is no longer called by the game. The standalone `AI-TEST` Snake project
-is retained as a separate legacy demo. Optional `GEMINI_DECISION_MODEL` and
+AnyRouter's curated free chat models are available through Automatic and Manual
+conversation; decisions still use Google. The standalone `AI-TEST` Snake project
+is retained as a separate demo. Optional `GEMINI_DECISION_MODEL` and
 `GEMINI_DECISION_LIMIT` override the model and local attempt allowance; the
 provider quota still applies. The previous five-attempt local cap is removed.
 Enable **Use decision model for the caretaker** to use the Google fast controller.
 
 When **Include game screenshot and pointed target** is checked, every message
-now captures and sends a fresh game screenshot. No keyword gate filters object
-questions. The **Latest screenshot sent** preview shows the exact image and red
+captures a fresh game screenshot for the local server. Visual questions send
+pixels to a compatible selected model; Auto/Manual omit pixels for ordinary
+chat. The **Latest screenshot sent** preview shows the captured image and red
 crosshair. **Server received screenshot** confirms validated receipt by the
 backend; it does not claim the model's interpretation is always correct. With
 sharing unchecked, the status explicitly says text only.
 
 ## Response speed and local voice
 
-Conversation and screenshots use **local Qwen3.5-2B Q4_K_M** on the GPU.
-Replies stream immediately; optional speech is generated separately by
+In **Fully local** mode, conversation and screenshots use **local Qwen3.5-2B
+Q4_K_M** on the GPU. Local replies stream; cloud failover validates short replies
+before publishing them. Optional speech is generated separately by
 **Paradee 1.3.1 on the CPU**. Neither local model needs an API key or cloud quota.
 Run `npm run llm:setup` once to install and initialize local conversation.
 See [local LLM setup and measured GPU results](docs/LOCAL_LLM.md).
@@ -56,13 +65,18 @@ Starting the worker also takes a few seconds once. Text is never held for speech
 These measurements exclude LLM inference time and are not latency guarantees.
 See [local speech setup and model comparison](docs/LOCAL_VOICE.md).
 
+Voice replies use positional stereo audio from the NPC's head in every world.
+Turning or walking changes the direction and volume; sound fades with distance
+and is silent beyond 50 world units. Both generated speech and streamed audio
+use the same positioning. Headphones make the directional effect easiest to hear.
+
 Screenshots are attached to every message while the include-view checkbox is
 enabled. Uncheck it for text-only conversation. `NPC_LOCAL_MODEL` selects the
 local model (it must be installed in the project's Ollama store). There is no
 local daily request allowance; speed depends on hardware and context length.
 
-Google remains an explicit alternative: set `NPC_LLM_PROVIDER=gemini` to use
-`GEMINI_TEXT_MODEL`. Set `NPC_VOICE_PROVIDER=gemini` to restore native cloud
+Choose a Gemini model through **Manual**, or use **Automatic** for cloud failover.
+Set `NPC_VOICE_PROVIDER=gemini` to restore cloud
 speech. Google quotas apply when those options or its decision model are used.
 No automatic cloud fallback occurs for local model failures.
 
@@ -197,6 +211,8 @@ npm run build
 npm run test:browser
 ```
 
+Browser tests run headless and use `tests/browser/fixtures.ts` to simulate pointer lock without capturing the desktop mouse. New browser tests must import `test` and `expect` from `./fixtures`. Physical mouse capture still needs manual verification in normal gameplay.
+
 The browser test uses installed Google Chrome through Playwright and starts/stops its own Vite server on port 5174. If Chrome is missing, install it or change the Playwright channel to an installed browser. Test screenshots are written to ignored `artifacts/`; failure output goes to ignored `test-results/`.
 
 Unit tests cover physics, interaction, generation determinism, prompt validation, theme selection and map/spawn collision safety across themes and seeds. Browser tests cover the original playable loop plus world creation, themed dialogue, map replacement, settings, fallback feedback and reload behavior. They check for uncaught runtime errors and explicitly release pointer lock to exercise pause; manually verify physical Escape and mouse feel on the target laptops.
@@ -221,11 +237,13 @@ Physics uses metres, a Y-up coordinate system, and a feet-position player state 
 
 ## Scope and limitations
 
-Geometry is handmade placeholder content, not the generation pipeline. NPC navigation, optional decision-model calls, Gemini conversation/plans and browser voice are implemented. There are no savefiles, world slots, quests, recorded character voices, or area transitions yet. Reloading resets the playground.
+World creation uses local procedural geometry. The monk NPC supports navigation,
+world interactions, model-generated conversation and action plans, screenshots,
+local speech recognition, and positional speech playback. Cloud provider/model
+selection persists in this browser; generated worlds and conversations are not
+saved across reloads. There are no quests, world slots or area transitions yet.
 
-The first-person foundation and local procedural world generation are implemented. Geometry is made from built-in primitives; NPC replies are scripted and reflect the current map. There are no model calls, savefiles, world slots, multi-turn opening conversations, NPC pathfinding, quests, audio, or area transitions yet. Reloading returns to world creation. The free-text world prompt is a first step toward the planned opening conversation.
-
-The simple colliders and ground-plane grid navigation support this courtyard, not arbitrary generated meshes, slopes, or complex terrain. The caretaker's collision box moves with it, but it does not push the player or jump onto platforms. Collision representation and navigation must be revisited before importing generated environments. Assets, dialogue, and settings are not persisted. Performance must still be measured on both target laptops; automated browser timing is not a hardware benchmark.
+The simple colliders and ground-plane grid navigation support this courtyard, not arbitrary generated meshes, slopes, or complex terrain. The caretaker's collision box moves with it, but it does not push the player or jump onto platforms. Collision representation and navigation must be revisited before importing generated environments. World state and dialogue are not persisted. Performance must still be measured on both target laptops; automated browser timing is not a hardware benchmark.
 
 CodeGraph was initialized with user approval. Run `codegraph index` to rebuild the local index when needed; `.codegraph/` is not committed. Prefer CodeGraph for structural exploration as described in the project brief.
 

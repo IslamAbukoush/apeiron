@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './fixtures';
 test('hybrid mode shows local vision routing, timing and Groq allowance in game',async({page})=>{
   await page.route('**/api/npc/status',r=>r.fulfill({json:{configured:false}}));
   await page.route('**/api/npc/thought/status',r=>r.fulfill({json:{provider:'groq',mode:'hybrid',model:'qwen/qwen3.8-27b',visionModel:'qwen3.5:2b-q4_K_M',configured:true,perception:{used:true,latencyMs:1500},usage:{sessionRequests:1,sessionTokens:800}}}));

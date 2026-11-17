@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './fixtures';
 
 test('come here keeps following and stop holds position despite a waystone-biased model',async({page})=>{
   test.setTimeout(45000);

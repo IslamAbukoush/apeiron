@@ -1,17 +1,20 @@
 # Groq NPC conversation and planning
 
-The pause menu's **Conversation and planning model** selector switches between
-**Hybrid: local vision + Groq** and **Fully local: vision + conversation + planning**
+The pause menu's **Conversation and planning model** selector offers Automatic
+cloud failover, a Manual provider/model selection, **Hybrid: local vision + Groq**
+and **Fully local: vision + conversation + planning**
 without restarting the server. The browser remembers the selection on reload and
 world changes. Requests and usage status are routed to the selected provider;
 other browser sessions keep their own choice. Switching cancels in-flight replies
 from the previous provider. The separate decision-model checkbox is unchanged.
 Fully local mode uses the installed local LLM with no Groq fallback or API quota;
 the existing local speech recognition and synthesis remain local as well.
+See [Cloud failover and manual selection](CLOUD_FAILOVER.md) for Gemini, Groq and
+the curated AnyRouter free models.
 
 ## Hybrid local vision + Groq
 
-`NPC_LLM_PROVIDER=hybrid` uses the installed local Qwen model to describe game
+Selecting **Hybrid: local vision + Groq** uses the installed local Qwen model to describe game
 screenshots. Groq receives only this short text observation and relevant engine
 object data, never image pixels. Groq still handles dialogue and action planning.
 The local caption is fallible evidence, not a source of executable coordinates:
@@ -29,18 +32,18 @@ This trades local compute time for API token savings. In the recorded courtyard
 probe, a visual turn used about 770–790 API tokens versus roughly 3,000 with cloud
 vision (about 74% less). See `artifacts/hybrid-benchmark.json` for sample timings.
 
-Use `NPC_LLM_PROVIDER=groq` for direct cloud vision again, or `local` for all-local
-dialogue. Keep one game server running to avoid duplicate model memory use.
+Use **Manual** with Groq Qwen for direct cloud vision, **Automatic** for cloud
+failover, or **Fully local** for all-local dialogue. Keep one game server running
+to avoid duplicate model memory use.
 
 Set these in the ignored `.env.local` file and restart Vite:
 
 ```dotenv
-NPC_LLM_PROVIDER=groq
 GROQ_MODEL=qwen/qwen3.8-27b
 GROQ_API_KEY=your-key
 ```
 
-For the hybrid pipeline, replace `groq` above with `hybrid`. The real warm browser
+Choose **Hybrid** in the pause menu for the local-vision pipeline. The real warm browser
 check measured 2.01 seconds until text appeared and 2.83 seconds until local voice
 was ready (`artifacts/hybrid-real-game.json`). Cold first-image checks took 8–10
 seconds; identical cached views skipped local inference. API-only latency in the
@@ -48,7 +51,7 @@ usage readout excludes the separately displayed local vision time.
 
 The key stays on the server. Groq receives conversation context, relevant world
 objects, and screenshots when enabled. Speech synthesis and recognition remain
-local. Set `NPC_LLM_PROVIDER=local` to return to the installed local LLM.
+local. Choose **Fully local** to return to the installed local LLM.
 
 The game HUD and pause menu show provider/model, request and token allowances,
 refill countdowns, last model latency, and server-session calls/tokens. Values

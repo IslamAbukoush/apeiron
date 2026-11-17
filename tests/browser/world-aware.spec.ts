@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './fixtures';
 
 test('bench commands work in the courtyard; switching worlds exposes the cupcake and removes old destinations',async({page})=>{
   await page.route('**/api/npc/status',route=>route.fulfill({json:{configured:false}}));

@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './fixtures';
 test('a visual question physically approaches the named object before sending an NPC-eye screenshot',async({page})=>{
   let payload:any,calls=0;await page.route('**/api/npc/status',r=>r.fulfill({json:{configured:false}}));await page.route('**/api/npc/thought/status',r=>r.fulfill({json:{configured:true,provider:'groq'}}));
   await page.route('**/api/npc/thought',r=>{calls++;payload=r.request().postDataJSON();return r.fulfill({headers:{'X-NPC-Vision':'received','X-NPC-Vision-Source':'local'},json:{speech:'The bench is a warm brown, with a solid wooden backrest.',plan:[]}});});

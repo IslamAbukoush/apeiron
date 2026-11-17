@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 test.beforeEach(async({page})=>{await page.route('**/api/npc/thought/status',r=>r.fulfill({json:{configured:false}}));});
 
 test('enter, move, interact, pause, change settings and reset', async ({ page }) => {

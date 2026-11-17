@@ -26,7 +26,10 @@ export class Caretaker {
   busy = false;
   thinking = false;
   llmEnabled = false;
-  llmProvider:'local'|'hybrid'='hybrid';
+  llmProvider:'local'|'hybrid'|'auto'|'manual'='auto';
+  cloudProvider='gemini';
+  cloudModel='';
+  llmHeaders():Record<string,string>{return {'X-NPC-Provider':this.llmProvider,...(this.llmProvider==='manual'?{'X-NPC-Cloud-Provider':this.cloudProvider,'X-NPC-Model':this.cloudModel}:{})};}
   autonomyInterval=12;
   thoughtStatus = '';
   visionStatus = '';
@@ -51,6 +54,13 @@ export class Caretaker {
   private hop = 0;
   private view: ViewContext = {};
   source = 'Local behavior';
+  readonly debugEvents:{time:string;source:string;detail:string}[]=[];
+  private trace(source:string,detail:string){
+    this.debugEvents.push({time:new Date().toLocaleTimeString(),source,detail:detail.slice(0,800)});
+    if(this.debugEvents.length>40)this.debugEvents.shift();
+  }
+  debugSummary(){return `Authority: ${this.source}\nDecision: ${this.busy?'request pending':this.aiEnabled?'enabled':'off'} | LLM: ${this.thinking?'request pending':this.llmEnabled?'enabled':'off'}\nAction: ${this.action} | Target: ${this.targetId||'none'}\nQueued plan: ${JSON.stringify(this.plan)}\nExecution: ${this.execution?JSON.stringify(this.execution):'none'}\n${this.thoughtStatus}\n\n${this.debugEvents.slice(-16).map(e=>`${e.time} [${e.source}] ${e.detail}`).join('\n')}`;}
+
   activity = 'Watching the courtyard';
   speech = '';
   private resolutionError?:string;
@@ -94,7 +104,7 @@ export class Caretaker {
     this.cancel(); this.aiEnabled = enabled; this.decisionClock = 0;
     this.source = enabled ? 'Model enabled' : 'Local behavior';
   }
-  setLlmProvider(provider:'local'|'hybrid'){this.cancel();this.llmProvider=provider;this.thoughtStatus='';this.source=provider==='local'?'Local LLM selected':'Hybrid LLM selected';}
+  setLlmProvider(provider:'local'|'hybrid'|'auto'|'manual'){this.cancel();this.llmProvider=provider;this.thoughtStatus='';this.source=provider==='local'?'Local LLM selected':provider==='auto'?'Auto cloud selected':provider==='manual'?'Manual cloud selected':'Hybrid LLM selected';}
   private cancel() { this.epoch++;if(this.look){this.route=[];this.complete=true;this.action='WAIT';this.activeObject=undefined;}this.endLook(false); this.pending?.abort(); this.thoughtController?.abort(); this.busy = false; this.thinking=false;this.replyStreamed=false; }
   private endLook(ready:boolean){const look=this.look;this.look=undefined;if(look)look.resolve(ready);}
   private canSee(focus:Vector3,bounds?:{minX:number;maxX:number;minZ:number;maxZ:number}){
@@ -129,6 +139,7 @@ export class Caretaker {
     return promise;
   }
   async command(request: string, player: Point, view: ViewContext = {}) {
+    this.trace('Player',request);
     this.cancel(); this.plan=[]; this.planned=false;this.objectIntent=undefined;this.objectPending=false;this.immediateJump=false;
     this.resolutionError=undefined;this.feedbackPending=false;this.lastRequest=request;
     this.speech='';
@@ -136,6 +147,7 @@ export class Caretaker {
     this.visionStatus=this.llmEnabled?(view.image?'Screenshot ready to send':'Text only ? no screenshot attached'):'Enable NPC conversation to use vision';
     const actionRequested=isActionRequest(request);
     const directive=playerDirective(request);
+    if(directive||actionRequested)this.trace('Local controller',directive||'Resolving requested object/action before model response');
     // A conversation also holds position; background decisions must not interrupt it.
     this.playerTask=!isAutonomyRequest(request);
     const resolution=this.registry&&actionRequested?resolveObjectRequest(request,this.registry.snapshot(),player,view.target):undefined;
@@ -165,13 +177,14 @@ export class Caretaker {
     const epoch=this.epoch,controller=new AbortController();this.thoughtController=controller;
     const timeout=setTimeout(()=>controller.abort(),45000);
     try {
-      const response=await this.fetcher('/api/npc/thought',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/x-ndjson','X-NPC-Provider':this.llmProvider},
+      this.trace('LLM',`Request via ${this.llmProvider}${this.llmProvider==='manual'?' / '+this.cloudProvider+' / '+this.cloudModel:''}${actionResult?' (action feedback)':''}`);
+      const response=await this.fetcher('/api/npc/thought',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/x-ndjson',...this.llmHeaders()},
         body:JSON.stringify({...this.snapshot(player,request),history:deliberate?[]:this.history,view:deliberate||actionResult?{}:this.view,voice:this.voiceEnabled,deliberate,...(actionResult?{event:'action_result'}:{})}),signal:controller.signal});
       if(epoch!==this.epoch)return;
       const vision=response.headers.get('X-NPC-Vision');
       const visionSource=response.headers.get('X-NPC-Vision-Source');
       this.visionStatus=vision==='received'?'Server received screenshot':vision==='none'?'Text only ? server received no image':this.view.image?'Screenshot sent ? server confirmation unavailable':'Text only ? no screenshot attached';
-      if(visionSource)this.visionStatus=visionSource==='local'?'Local vision processed screenshot · Groq receives text only':visionSource==='local-error'?'Local vision unavailable · screenshot stayed local':'Screenshot not needed for this turn · Groq receives text only';
+      if(visionSource)this.visionStatus=visionSource==='cloud'?'Cloud model received NPC-eye screenshot':visionSource==='local'?'Local vision processed screenshot · Groq receives text only':visionSource==='local-error'?'Local vision unavailable · screenshot stayed local':'Screenshot not needed for this turn; model receives text only';
       let replyApplied=false;
       const applyReply=(result:any)=>{
         if(epoch!==this.epoch)return;
@@ -180,6 +193,7 @@ export class Caretaker {
       const directive=deliberate||actionResult?undefined:playerDirective(request);
       if(replyApplied){if(!canPlanActions(request)&&result.speech.trim()&&this.speech!==result.speech)this.say(result.speech);return;}
       const validated=parsePlan(result.plan);
+      this.trace('LLM',`${result.provider||this.llmProvider} / ${result.model||'model'} returned plan ${JSON.stringify(validated)}${actionResult?' (feedback only)':''}`);
       for(const step of validated)if(typeof step!=='string'){
         const object=this.registry?.get(step.targetId);if(!object||step.action==='INTERACT_OBJECT'&&!object.actions.includes(step.interaction!))throw Error('Unsupported world object or interaction');
       }
@@ -233,7 +247,7 @@ export class Caretaker {
       if(!deliberate){if(!actionResult)this.history.push(`Player: ${request}`);if(result.speech.trim()&&this.speech===result.speech)this.history.push(`Caretaker: ${result.speech}`);this.history=this.history.slice(-8);}
       this.thoughtStatus=`${result.provider==='local'?'Local LLM':'LLM'} · ${result.latencyMs ?? 0} ms`;
     }catch(error){if(epoch===this.epoch){
-      this.thoughtStatus=error instanceof Error?error.message:'LLM unavailable';
+      this.thoughtStatus=error instanceof Error?error.message:'LLM unavailable';this.trace('LLM error',this.thoughtStatus);
     }}
     finally{clearTimeout(timeout);if(epoch===this.epoch){this.thinking=false;this.decisionClock=this.autonomyInterval;}}
   }
@@ -243,6 +257,7 @@ export class Caretaker {
     const epoch = this.epoch;
     const controller = this.pending;
     const timer = setTimeout(() => controller.abort(),15000);
+    this.trace('Decision model','Request sent');
     this.source = 'Asking decision model…';
     try {
       const response = await this.fetcher('/api/npc/decision',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -251,11 +266,13 @@ export class Caretaker {
       if (epoch !== this.epoch) return;
       if (!response.ok) throw new Error(result.error || 'Decision request failed');
       if (!Object.hasOwn(ACTIONS,result.action) || !Object.hasOwn(REPLIES,result.reply)) throw new Error('Invalid model decision');
+      this.trace('Decision model',`${result.action}; ${this.planned||playerDirective(request)?'ignored: higher-priority plan or player command':'accepted'}; ${result.latencyMs??0} ms`);
       if (!this.planned && !playerDirective(request)) this.apply(result,player);
       this.source = this.planned?'LLM plan · overrides decision model':`Model · ${result.latencyMs ?? 0} ms · ${result.remaining ?? '?'} requests left`;
       if (result.remaining === 0) { this.aiEnabled = false; this.source += ' · local behavior next'; }
     } catch (error) {
       if (epoch !== this.epoch) return;
+      this.trace('Decision error',error instanceof Error?error.message:'Unavailable');
       this.aiEnabled = false;
       this.source = this.planned?'LLM plan · overrides decision model':`Local fallback · ${error instanceof Error ? error.message : 'Model unavailable'}`;
       if (request && !this.planned) this.apply(localDecision(request),player);
@@ -270,6 +287,7 @@ export class Caretaker {
     if(!caretakerAvatar(this.mesh))this.mesh.children.forEach((child,i)=>{const pose=this.restPose[i];child.position.copy(pose.position);child.rotation.set(pose.rotation.x,pose.rotation.y,pose.rotation.z);});this.syncCollider();
   }
   private record(step:NpcStep,status:ActionReceipt['status'],detail:string){
+    this.trace('Execution',`${status}: ${JSON.stringify(step)} - ${detail}`);
     this.execution={step:typeof step==='string'?step:{...step},status,detail:detail.slice(0,200)};
     if(status==='blocked'){this.activity=detail;this.feedbackPending=this.llmEnabled&&this.playerTask;this.plan=[];}
   }

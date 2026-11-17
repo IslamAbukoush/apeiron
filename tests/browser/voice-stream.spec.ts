@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './fixtures';
 test('voice chunks play before the final response and do not call separate TTS',async({page})=>{
   let separateTts=0;
   await page.route('**/api/npc/status',r=>r.fulfill({json:{configured:false}}));

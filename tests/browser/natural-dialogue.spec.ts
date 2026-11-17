@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './fixtures';
 test('only generated dialogue enters chat; reaching an object does not add an arrival line',async({page})=>{
   await page.route('**/api/npc/status',r=>r.fulfill({json:{configured:false}}));
   await page.route('**/api/npc/thought/status',r=>r.fulfill({json:{configured:true,provider:'groq'}}));

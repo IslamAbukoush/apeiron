@@ -9,13 +9,13 @@ import {LOCAL_MODEL,LOCAL_URL} from './local-llm.ts';
 
 const schema={type:'object',properties:{speech:{type:'string',maxLength:600},plan:{type:'array',items:{type:'string',enum:Object.keys(ACTIONS)},maxItems:3}},required:['speech','plan'],additionalProperties:false};
 
-export function createLocalThoughtMiddleware(options:{model?:string;baseUrl?:string;fetcher?:typeof fetch;start?:()=>Promise<void>;status?:()=>Promise<unknown>;provider?:string;usage?:()=>unknown;compactContext?:boolean;perception?:()=>unknown}){
+export function createLocalThoughtMiddleware(options:{model?:string;baseUrl?:string;fetcher?:typeof fetch;start?:()=>Promise<void>;status?:(req:IncomingMessage)=>Promise<unknown>;provider?:string;usage?:()=>unknown;compactContext?:boolean;perception?:()=>unknown;responseMeta?:()=>{model:string;provider:string};visionSource?:()=>string;transportHeaders?:(req:IncomingMessage)=>Record<string,string>}){
   const model=options.model||LOCAL_MODEL,base=options.baseUrl||LOCAL_URL,fetcher=options.fetcher||fetch;
   const provider=options.provider||'local';
   let active:AbortController|undefined;
   const send=(res:ServerResponse,status:number,data:unknown)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
   return async(req:IncomingMessage,res:ServerResponse,next:()=>void)=>{
-    if(req.url==='/api/npc/thought/status')return send(res,200,options.status?await options.status():{provider:'local',model,configured:true,remaining:null});
+    if(req.url==='/api/npc/thought/status')return send(res,200,options.status?await options.status(req):{provider:'local',model,configured:true,remaining:null});
     if(req.url!=='/api/npc/thought')return next();
     if(req.method!=='POST')return send(res,405,{error:'POST required'});
     if(req.headers.origin && ![`http://${req.headers.host}`,`https://${req.headers.host}`].includes(req.headers.origin))return send(res,403,{error:'Origin not allowed'});
@@ -49,14 +49,16 @@ export function createLocalThoughtMiddleware(options:{model?:string;baseUrl?:str
       const messages=[{role:'system',content:caretakerInstruction(state.request,deliberate,actionResult)+objectInstructions+(resolved?.error?' The engine could not resolve this request. Explain resolutionIssue naturally and return an empty plan.':'')+(directive?' The engine has resolved a direct instruction in retrieved context. Acknowledge it in your own words only; do not offer to lead them anywhere or resume an earlier task.':'')+(view.image?' A screenshot is attached to this turn.':' No screenshot is attached to this turn. Do not invent visible objects or describe a view.')+(action?' Return JSON with speech and plan. Follow the player request, not the current task. Allowed actions: '+JSON.stringify(ACTIONS):' Reply in brief natural dialogue only; do not output JSON or action names.')},
         ...(directive||deliberate?[]:history).map(turn=>({role:turn.startsWith('Player:')?'user':'assistant',content:turn.replace(/^(Player|Caretaker):\s*/, '')})),
         {role:'user',content:'Game context: '+JSON.stringify({directive,currentTask:state.npc.action,npc:state.npc,player:state.player,lanternOn:state.lanternOn,target:view.target,perspective:view.perspective,world:worldContext})+'\nPlayer request: '+state.request,...(view.image?{images:[view.image.split(',')[1]]}:{})}];
-      const response=await fetcher(base+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,
+      const response=await fetcher(base+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json',...options.transportHeaders?.(req)},signal:controller.signal,
         body:JSON.stringify({model,messages,think:false,stream:!action,keep_alive:'10m',...(action?{format}:{}),options:{num_ctx:4096,num_batch:128,num_predict:180,temperature:0.3}})});
       if(!response.ok){
-        if(provider==='groq'){const problem=await response.json().catch(()=>({}));return send(res,response.status,{error:problem.error||'Groq request failed.',usage:options.usage?.()});}
+        if(provider==='groq'||provider==='cloud'){const problem=await response.json().catch(()=>({}));return send(res,response.status,{error:problem.error||'Cloud request failed.',usage:options.usage?.(),...(options.responseMeta?.()||{})});}
         if(response.status===404)return send(res,503,{error:'Local model is missing. Run npm run llm:setup.'});
         throw Error('Local model request failed');
       }
       const perception=options.perception?.() as {used?:boolean;error?:string}|undefined;
+      const actual=options.responseMeta?.()||{model,provider};res.setHeader('X-NPC-Provider',actual.provider);
+      if(options.visionSource)res.setHeader('X-NPC-Vision-Source',options.visionSource());
       if(perception)res.setHeader('X-NPC-Vision-Source',perception.error?'local-error':perception.used?'local':'unused');
       if(streaming){res.writeHead(200,{'Content-Type':'application/x-ndjson','Cache-Control':'no-store','X-Accel-Buffering':'no'});res.flushHeaders();}
       let reply;
@@ -83,11 +85,11 @@ export function createLocalThoughtMiddleware(options:{model?:string;baseUrl?:str
         reply=parseThought({speech:speech.trim(),plan:[]});
       }
       if(controller.signal.aborted)return;
-      const result={...reply,model,provider,...(world?{worldId:world.id}:{}),latencyMs:Math.round(performance.now()-started),remaining:null,...(perception?{perception}:{}),...(options.usage?{usage:options.usage()}: {})};
+      const result={...reply,...actual,...(world?{worldId:world.id}:{}),latencyMs:Math.round(performance.now()-started),remaining:null,...(perception?{perception}:{}),...(options.usage?{usage:options.usage()}: {})};
       if(streaming){event('done',result);res.end();}else send(res,200,result);
     }catch{
       if(res.destroyed)return;
-      const error=provider==='groq'?(controller.signal.aborted?'Groq request cancelled or timed out.':'Groq unavailable or returned an invalid plan. Check AI usage and try again.'):controller.signal.aborted?'Local model request cancelled or timed out.':'Local LLM unavailable. Run npm run llm:setup and check .local-llm/ollama.log.';
+      const error=provider==='cloud'?'Cloud models unavailable or the request was cancelled. Check model cooldowns.':provider==='groq'?(controller.signal.aborted?'Groq request cancelled or timed out.':'Groq unavailable or returned an invalid plan. Check AI usage and try again.'):controller.signal.aborted?'Local model request cancelled or timed out.':'Local LLM unavailable. Run npm run llm:setup and check .local-llm/ollama.log.';
       if(res.headersSent){event('error',error);res.end();}else send(res,503,{error});
     }finally{clearTimeout(timer);res.removeListener('close',cancel);if(active===controller)active=undefined;}
   };

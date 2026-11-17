@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './fixtures';
 
 test('local voice plays real Paradee audio without delaying the text reply',async({page})=>{
   let release!:()=>void;const gate=new Promise<void>(resolve=>release=resolve);
