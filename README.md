@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite, normally http://127.0.0.1:5173. Click **Enter playground** to capture the mouse. A desktop browser with WebGL 2 and a keyboard/mouse is required. Local NPC behavior needs no keys or downloaded assets. Conversation defaults to **Automatic: Gemini, Groq, AnyRouter free** for new browser profiles; existing saved selections are preserved. Speech uses local Paradee. The optional fast decision API remains Google AI Studio.
+Open the local URL printed by Vite, normally http://127.0.0.1:5173. Click **Enter playground** to capture the mouse. A desktop browser with WebGL 2 and a keyboard/mouse is required. Local NPC behavior needs no keys or downloaded assets. Conversation defaults to **Automatic: Gemini, Groq, AnyRouter free** for new browser profiles; existing saved selections are preserved. Speech defaults to Deepgram with local Paradee fallback. The optional fast decision API remains Google AI Studio.
 
 The pause menu offers **Automatic** failover, **Manual** provider/model selection,
 **Hybrid** local vision with Groq, and **Fully local** conversation/vision. Manual
@@ -42,8 +42,9 @@ sharing unchecked, the status explicitly says text only.
 
 In **Fully local** mode, conversation and screenshots use **local Qwen3.5-2B
 Q4_K_M** on the GPU. Local replies stream; cloud failover validates short replies
-before publishing them. Optional speech is generated separately by
-**Paradee 1.3.1 on the CPU**. Neither local model needs an API key or cloud quota.
+before publishing them. Speech is generated separately. Choose **Paradee (local CPU)** in voice settings
+for fully local speech; conversation mode and voice provider are independent.
+Neither local model needs an API key or cloud quota.
 Run `npm run llm:setup` once to install and initialize local conversation.
 See [local LLM setup and measured GPU results](docs/LOCAL_LLM.md).
 
@@ -57,8 +58,26 @@ npm run dev
 Setup creates an isolated `.local-tts/venv`, downloads the small model and warms
 its pronunciation data. The game keeps a background worker loaded and closes it
 when Vite stops. After setup, the worker uses the cached model in offline mode.
-Enable **NPC voice replies** in the menu. The default voice is `am_puck`; set
-`PARADEE_VOICE=af_heart`, `bf_isabella` or `bm_fable` in `.env.local` to change it.
+Voice replies are enabled by default. In **Voice and microphone**, select
+**Deepgram API (local fallback)** or **Paradee (local CPU)**. Choose among six
+Deepgram English voices (Apollo by default) and four local voices (Puck by
+default). The local selection also controls the fallback voice. Choices persist
+in this browser. Speech retains NPC positional audio with either provider.
+
+Set `DEEPGRAM_API_KEY` in the ignored root `.env.local` and restart Vite to enable
+Deepgram. The key stays on the server; no browser API key is needed. Requests use
+Aura 2 streaming PCM audio: playback starts after roughly 100 ms of audio has
+arrived, through the same NPC spatial panner. The first-audio and idle deadlines
+are five seconds, with a 30-second overall cap. Errors before playback fall back
+to local WAV speech; the player labels fallback playback. A broken stream after
+playback starts stops with an error rather than repeating the reply locally.
+Cloud dialogue still waits for its validated LLM reply before starting synthesis;
+local Paradee synthesis remains buffered.
+Install local speech with the command above so fallback is available. Cancelling
+or replacing speech cancels the API request without starting a fallback.
+
+Deepgram usage follows your account's credits and pricing. Selecting Paradee
+sends no speech requests to Deepgram. Text remains available if both fail.
 
 Measured synthesis on this laptop: 139-212 ms for 2.9-4.75 seconds of audio.
 Starting the worker also takes a few seconds once. Text is never held for speech.
@@ -109,7 +128,7 @@ reachability; it rejects sky, raised surfaces, walls, and occupied spots. The NP
 stays at the reached destination. Object tops and jumping onto platforms are not
 supported. Vision is per-message, not continuous surveillance or autonomous sight.
 
-Enable **NPC voice replies** in the pause menu for local speech. The audio player
+Use **NPC voice replies** in the pause menu to toggle speech. The audio player
 appears in chat; if the browser blocks autoplay, press play. Errors remain visible
 and text replies continue working. Turning voice off or sending a new message
 stops old playback. Model files stay in the ignored `.local-tts` directory.

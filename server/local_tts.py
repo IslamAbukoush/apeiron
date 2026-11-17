@@ -30,7 +30,7 @@ def main():
                 raise ValueError("Invalid speech text")
             started = time.perf_counter()
             with contextlib.redirect_stdout(sys.stderr):
-                audio = tts(text, voice=voice)
+                audio = tts(text, voice=request.get("voice", voice))
             pcm = (np.clip(audio, -1, 1) * 32767).astype("<i2")
             output = io.BytesIO()
             with wave.open(output, "wb") as wav:

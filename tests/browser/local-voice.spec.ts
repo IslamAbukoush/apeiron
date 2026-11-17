@@ -12,6 +12,7 @@ test('local voice plays real Paradee audio without delaying the text reply',asyn
     await route.fulfill({response});
   });
   await page.goto('/');
+  await page.locator('#voice-engine').selectOption('paradee');
   const status=await(await page.request.get('/api/npc/tts/status')).json();
   test.skip(!status.configured,'Run npm run tts:setup to install the local model.');
   await expect(page.locator('#npc-llm')).toBeChecked();await page.locator('#npc-voice').check();

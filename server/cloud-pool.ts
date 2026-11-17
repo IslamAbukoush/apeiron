@@ -9,7 +9,8 @@ import {isVisualRequest} from '../src/game/visual-intent.ts';
 export const GEMINI_POOL=['gemini-3.5-flash-lite','gemini-3.1-flash-lite','gemini-3.8-flash','gemini-3.6-flash','gemini-3.5-flash','gemini-3-flash-preview','gemini-2.5-flash-lite','gemini-2.5-flash'];
 export const GROQ_POOL=['qwen/qwen3.8-27b','openai/gpt-oss-20b','openai/gpt-oss-120b'];
 export const ANYROUTER_POOL=[{model:'minimax/minimax-m3.1-flash:free',vision:false},{model:'nvidia/nemotron-3.5-lightning-30b-a3b:free',vision:false},{model:'nvidia/nemotron-3.5-super-vl-120b-a12b:free',vision:true}];
-type Provider='gemini'|'groq'|'anyrouter';
+export const ZAI_POOL=[{model:'glm-4.7-flash',vision:false},{model:'glm-4.5-flash',vision:false},{model:'glm-4.6v-flash',vision:true}];
+type Provider='gemini'|'groq'|'anyrouter'|'zai';
 type Entry={provider:Provider;model:string;vision:boolean;availableAt:number;failures:number;reason?:string;requests:number;tokens:number;lastStatus?:number};
 /** Honor server retry hints; never infer that another model has independent quota. */
 export function retryDelay(headers:Headers,data:any,now:number){
@@ -19,12 +20,13 @@ export function retryDelay(headers:Headers,data:any,now:number){
   if(hint&&/^\d+(\.\d+)?s$/.test(hint))return Math.max(1000,parseFloat(hint)*1000);
 }
 
-export function createCloudPool(options:{geminiKey?:string;groqKey?:string;anyrouterKey?:string;geminiModels?:string[];groqModels?:string[];fetcher?:typeof fetch;now?:()=>number;attemptMs?:number;budgetMs?:number}){
+export function createCloudPool(options:{geminiKey?:string;groqKey?:string;anyrouterKey?:string;zaiKey?:string;geminiModels?:string[];groqModels?:string[];fetcher?:typeof fetch;now?:()=>number;attemptMs?:number;budgetMs?:number}){
   const fetcher=options.fetcher||fetch,now=options.now||Date.now;
   const entries:Entry[]=[...new Set(options.geminiModels??GEMINI_POOL)].map(model=>({provider:'gemini' as const,model,vision:true,availableAt:0,failures:0,requests:0,tokens:0}));
   entries.push(...[...new Set(options.groqModels??GROQ_POOL)].map(model=>({provider:'groq' as const,model,vision:model.startsWith('qwen/'),availableAt:0,failures:0,requests:0,tokens:0})));
   entries.push(...ANYROUTER_POOL.map(entry=>({...entry,provider:'anyrouter' as const,availableAt:0,failures:0,requests:0,tokens:0})));
-  const key=(provider:Provider)=>provider==='gemini'?options.geminiKey:provider==='groq'?options.groqKey:options.anyrouterKey;
+  entries.push(...ZAI_POOL.map(entry=>({...entry,provider:'zai' as const,availableAt:0,failures:0,requests:0,tokens:0})));
+  const key=(provider:Provider)=>provider==='gemini'?options.geminiKey:provider==='groq'?options.groqKey:provider==='zai'?options.zaiKey:options.anyrouterKey;
   const catalog=()=>entries.map(({provider,model,vision})=>({provider,model,vision,configured:!!key(provider)}));
   let active=entries.find(entry=>key(entry.provider)),error='',imageSent=false,usage:Record<string,unknown>={sessionRequests:0,sessionTokens:0};
   const status=()=>({provider:active?.provider||'cloud',model:active?.model,mode:'auto',configured:entries.some(entry=>key(entry.provider)),error:error||undefined,usage:{...usage},pool:entries.map(entry=>({...entry,state:!key(entry.provider)?'unconfigured':entry.availableAt>now()?'cooling':'ready'}))});
@@ -37,7 +39,7 @@ export function createCloudPool(options:{geminiKey?:string;groqKey?:string;anyro
     const incoming=new Headers(init?.headers),selectedProvider=incoming.get('X-NPC-Cloud-Provider'),selectedModel=incoming.get('X-NPC-Model');
     if((selectedProvider||selectedModel)&&!entries.some(e=>e.provider===selectedProvider&&e.model===selectedModel))return Response.json({error:'Choose a supported provider and model.'},{status:400});
     const candidates=selectedProvider?entries.filter(e=>e.provider===selectedProvider&&e.model===selectedModel):entries;
-    const waits={gemini:0,groq:0,anyrouter:0};
+    const waits={gemini:0,groq:0,anyrouter:0,zai:0};
     for(const entry of candidates){
       if(init?.signal?.aborted)throw Error('Cancelled');
       if(!key(entry.provider)||entry.availableAt>now()||(hasImage&&!entry.vision))continue;
@@ -58,8 +60,17 @@ export function createCloudPool(options:{geminiKey?:string;groqKey?:string;anyro
           url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(entry.model)}:generateContent`;headers['x-goog-api-key']=options.geminiKey!;
           payload={systemInstruction:{parts:[{text:messages[0].content}]},contents:messages.slice(1).map((m:any)=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content},...(m.images||[]).map((data:string)=>({inlineData:{mimeType:'image/jpeg',data}}))]})),generationConfig:{maxOutputTokens:body.format?700:300,thinkingConfig:entry.model.startsWith('gemini-2.5')?{thinkingBudget:0}:{thinkingLevel:/gemini-3\.[678]/.test(entry.model)?'low':'minimal'},...(body.format?{responseMimeType:'application/json',responseJsonSchema:strictSchema(body.format)}:{})}};
         }else{
-          url=entry.provider==='groq'?'https://api.groq.com/openai/v1/chat/completions':'https://api.anyrouter.dev/api/v1/chat/completions';headers.Authorization=`Bearer ${key(entry.provider)}`;
+          url=entry.provider==='groq'?'https://api.groq.com/openai/v1/chat/completions':entry.provider==='zai'?'https://api.z.ai/api/paas/v4/chat/completions':'https://api.anyrouter.dev/api/v1/chat/completions';headers.Authorization=`Bearer ${key(entry.provider)}`;
           payload={model:entry.model,messages:messages.map(({images,content,...m}:any)=>({...m,content:images?.length?[{type:'text',text:content},...images.map((data:string)=>({type:'image_url',image_url:{url:'data:image/jpeg;base64,'+data}}))]:content})),stream:false,max_completion_tokens:body.format?700:300,reasoning_effort:entry.model.startsWith('qwen/')?'none':'low',...(body.format?{response_format:{type:'json_schema',json_schema:{name:'npc_reply',strict:true,schema:strictSchema(body.format)}}}:{})};
+          if(entry.provider==='zai'){
+            delete payload.max_completion_tokens;
+            delete payload.reasoning_effort;
+            delete payload.response_format;
+            payload.max_tokens=body.format?700:300;
+            payload.thinking={type:'disabled'};
+            if(body.format)messages[0].content+=' Return only a JSON object with speech and plan, without Markdown.';
+            payload.messages[0].content=messages[0].content;
+          }
           if(entry.provider==='anyrouter'){
             delete payload.max_completion_tokens;delete payload.response_format;delete payload.reasoning_effort;
             payload.max_tokens=body.format?1200:700;
@@ -75,7 +86,7 @@ export function createCloudPool(options:{geminiKey?:string;groqKey?:string;anyro
         if(!response.ok){
           const code=response.status;
           // Only explicit provider-wide billing/auth failures disable the entire provider.
-          const shared=[401,402,403].includes(code)||code===429&&(entry.provider==='anyrouter'||/\b(project|organization|organisation)[ -]wide\b/i.test(data?.error?.message||''));
+          const shared=[401,402,403].includes(code)||code===429&&(entry.provider==='anyrouter'||entry.provider==='zai'||/\b(project|organization|organisation)[ -]wide\b/i.test(data?.error?.message||''));
           const daily=code===429&&JSON.stringify(data?.error?.details||data?.error?.message||'').match(/perday|per_day|daily|tokens per day|requests per day/i);
           const delay=retryDelay(response.headers,data,now())??(shared&&code!==429||code===404||daily?86400000:code===400?3600000:Math.min(300000,15000*2**entry.failures));
           const reason=code===429?(shared?'Provider-wide rate limit':'Rate limited'):shared?'Provider authentication or access unavailable':code===404?'Model unavailable':code===400?'Model rejected request':`HTTP ${code}`;
@@ -91,7 +102,7 @@ export function createCloudPool(options:{geminiKey?:string;groqKey?:string;anyro
         const text=entry.provider==='gemini'?data.candidates?.[0]?.content?.parts?.filter((p:any)=>!p.thought).map((p:any)=>p.text||'').join(''):body.format&&tool?tool[0].function.arguments:data.choices?.[0]?.message?.content;
         let reply;
         if(body.format){
-          const value=JSON.parse(text);
+          const value=JSON.parse(String(text||'').trim().replace(/^```(?:json)?\s*|\s*```$/g,''));
           value.plan=(value.plan||[]).map((step:any)=>{if(step&&typeof step==='object'){for(const k of Object.keys(step))if(step[k]===null)delete step[k];if(LEGACY_ACTIONS.includes(step.action)&&!step.targetId&&!step.interaction&&!step.state)return step.action;}return step;});
           reply=parseThought(value);
           const allowed=strictSchema(body.format).properties.plan.items.properties;

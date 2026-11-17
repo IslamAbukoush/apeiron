@@ -49,7 +49,7 @@ test('generated speech uses the NPC panner and listener follows the player camer
   await page.route('**/api/npc/status',r=>r.fulfill({json:{configured:false}}));
   await page.route('**/api/npc/thought/status',r=>r.fulfill({json:{configured:true}}));
   await page.route('**/api/npc/thought',r=>r.fulfill({json:{speech:'You can hear me here.',plan:[]}}));
-  await page.goto('/');await expect(page.locator('#npc-llm')).toBeChecked();await page.locator('#npc-voice').check();await page.getByRole('button',{name:'Enter original playground'}).click();
+  await page.goto('/');await page.locator('#voice-engine').selectOption('paradee');await expect(page.locator('#npc-llm')).toBeChecked();await page.locator('#npc-voice').check();await page.getByRole('button',{name:'Enter original playground'}).click();
   await page.keyboard.press('KeyT');await page.locator('#chat-input').fill('Hello');await page.getByRole('button',{name:'Send message'}).click();
   await expect(page.locator('#voice-status audio')).toHaveCount(1,{timeout:15000});
   const position=()=>page.evaluate(()=>{const p=(window as any).voicePanner as PannerNode,c=(window as any).voiceContext as AudioContext;return {sourceX:p.positionX.value,sourceZ:p.positionZ.value,sourceY:p.positionY.value,listenerZ:c.listener.positionZ.value,linked:(window as any).mediaVoiceDestination===p,model:p.panningModel,rolloff:p.rolloffFactor};});

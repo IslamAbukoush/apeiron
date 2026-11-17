@@ -7,7 +7,7 @@ export function resetSeconds(value?:string|null):number|undefined{
   return matched?total:Number.isFinite(Number(value))?Number(value):undefined;
 }
 export function formatAiUsage(status:AiStatus,now=Date.now(),details=false):string{
-  const provider=status.provider==='groq'?'Groq':status.provider==='gemini'?'Gemini':status.provider==='anyrouter'?'AnyRouter':status.provider==='local'?'Local LLM':status.provider||'LLM';
+  const provider=status.provider==='groq'?'Groq':status.provider==='gemini'?'Gemini':status.provider==='anyrouter'?'AnyRouter':status.provider==='zai'?'Z.ai':status.provider==='local'?'Local LLM':status.provider||'LLM';
   const title=`${provider}${status.model?' · '+status.model:''}`;
   if(!status.configured)return `${title}\n${status.error||'Not configured'}`;
   if(status.mode==='auto'||status.mode==='manual'){
@@ -20,7 +20,7 @@ export function formatAiUsage(status:AiStatus,now=Date.now(),details=false):stri
     if(details){lines.push(status.mode==='manual'?'Pinned to your selection; no automatic fallback.':'Quotas may be shared; switching cannot guarantee availability.');for(const m of pool)lines.push(`${m.model}: ${m.state==='unconfigured'?'no key':m.availableAt>now?`${Math.ceil((m.availableAt-now)/1000)}s cooldown · ${m.reason||'unavailable'}`:'ready'} · ${m.requests} calls`);}
     return lines.join('\n');
   }
-  if(status.provider!=='groq')return `${title}\n${status.provider==='local'?'Runs locally · no API quota':'Usage limits not reported by this provider'}`;
+  if(status.provider!=='groq')return `${title}\n${status.provider==='zai'?'Z.ai':status.provider==='local'?'Runs locally · no API quota':'Usage limits not reported by this provider'}`;
   const u=status.usage||{},age=Math.max(0,(now-(u.updatedAt||now))/1000),number=(n?:number|null)=>n==null?'unknown':n.toLocaleString();
   const reset=(value?:string|null)=>{const seconds=resetSeconds(value);if(seconds===undefined)return 'unknown';const left=Math.ceil(seconds-age);return left>0?`${Math.floor(left/60)}m ${left%60}s`:'due; awaiting next API report';};
   const lines=[title,`Requests/day: ${number(u.requestsRemaining)} / ${number(u.requestLimit)} left`,`Tokens/min: ${number(u.tokensRemaining)} / ${number(u.tokenLimit)} left`];

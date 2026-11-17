@@ -1,6 +1,10 @@
+import {defaultDeepgramVoice} from '../voice-options';
 /** One active voice request/playback; newer replies invalidate old audio. */
 type Point={x:number;y:number;z:number};
 export class GoogleVoice {
+  engine='deepgram';
+  voice=defaultDeepgramVoice;
+  localVoice='am_puck';
   private controller?:AbortController;
   private audio?:HTMLAudioElement;
   private url?:string;
@@ -72,14 +76,34 @@ export class GoogleVoice {
   async speak(text:string,providedAudio?:string){
     this.stop();const context=this.prepareContext(),revision=this.revision;this.controller=new AbortController();this.status.textContent='Generating voice…';
     try{
-      const r=providedAudio?await fetch(providedAudio,{signal:this.controller.signal}):await fetch('/api/npc/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text}),signal:this.controller.signal});
+      const r=providedAudio?await fetch(providedAudio,{signal:this.controller.signal}):await fetch('/api/npc/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,engine:this.engine,voice:this.engine==='deepgram'?this.voice:this.localVoice,localVoice:this.localVoice,stream:this.engine==='deepgram'}),signal:this.controller.signal});
       if(!r.ok)throw Error((await r.json()).error||'Voice unavailable');
+      if(r.headers.get('Content-Type')?.startsWith('audio/pcm')){
+        if(!r.body)throw Error('Empty voice stream');
+        const reader=r.body.getReader();let pending=new Uint8Array(0),received=false;
+        const enqueue=(bytes:Uint8Array)=>{
+          let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+          this.chunk(btoa(binary));received=true;
+        };
+        while(true){
+          const part=await reader.read();if(revision!==this.revision){await reader.cancel();return;}
+          if(part.done)break;
+          const combined=new Uint8Array(pending.length+part.value.length);combined.set(pending);combined.set(part.value,pending.length);pending=combined;
+          // About 100 ms per buffer; retain split samples across network packets.
+          if(pending.length>=4800){const size=pending.length-pending.length%2;enqueue(pending.subarray(0,size));pending=pending.slice(size);}
+        }
+        if(pending.length%2)throw Error('Voice stream interrupted. Text remains available.');
+        if(pending.length)enqueue(pending);
+        if(!received)throw Error('Empty voice stream');
+        return;
+      }
       const blob=await r.blob();if(revision!==this.revision)return;
       this.url=URL.createObjectURL(blob);this.audio=new Audio(this.url);this.audio.controls=true;
       this.mediaSource=context.createMediaElementSource(this.audio);this.mediaSource.connect(this.panner!);
       this.audio.addEventListener('play',()=>{void context.resume().catch(()=>{});});
       this.status.replaceChildren(this.audio);
+      if(r.headers.get('X-NPC-Voice-Fallback'))this.status.prepend('Local fallback (Deepgram unavailable). ');
       try{await this.audio.play();}catch{if(revision===this.revision)this.status.prepend('Press play to hear the reply. ');}
-    }catch(error){if(revision===this.revision)this.status.textContent=error instanceof Error?error.message:'Voice unavailable';}
+    }catch(error){if(revision===this.revision){this.stop();this.status.textContent=error instanceof Error?error.message:'Voice unavailable';}}
   }
 }

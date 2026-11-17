@@ -1,3 +1,4 @@
+import {deepgramVoices,localVoices,defaultDeepgramVoice} from '../voice-options';
 import * as THREE from 'three';
 import { BODY, PlayerBody } from './physics';
 import { createWorld, type Interactable } from './world';
@@ -58,6 +59,21 @@ export function startGame(root: HTMLElement) {
   let view:ViewContext={};
   const voice=new GoogleVoice(ui.voiceStatus);
   const voiceForward=new THREE.Vector3(),voiceUp=new THREE.Vector3(),voiceSpeaker=new THREE.Vector3();
+  for(const item of deepgramVoices)ui.deepgramVoice.add(new Option(item.name,item.id));
+  for(const item of localVoices)ui.localVoice.add(new Option(item.name,item.id));
+  ui.deepgramVoice.value=defaultDeepgramVoice;ui.localVoice.value='am_puck';
+  for(const [select,key] of [[ui.voiceEngine,'engine'],[ui.deepgramVoice,'deepgram'],[ui.localVoice,'local']] as const){
+    try{const saved=localStorage.getItem(`apeiron-voice-${key}`);if(saved&&Array.from(select.options).some(o=>o.value===saved))select.value=saved;}catch{}
+    select.addEventListener('change',()=>{voice.stop();try{localStorage.setItem(`apeiron-voice-${key}`,select.value);}catch{}updateVoiceEngine();},{signal});
+  }
+  let deepgramConfigured:boolean|undefined;
+  function updateVoiceEngine(){
+    voice.engine=ui.voiceEngine.value;voice.voice=ui.deepgramVoice.value;voice.localVoice=ui.localVoice.value;
+    ui.deepgramVoice.disabled=voice.engine!=='deepgram';
+    ui.voiceEngineStatus.textContent=voice.engine==='paradee'?'Paradee runs locally on the CPU.':deepgramConfigured===false?'Deepgram key is not configured. Using local fallback.':'Deepgram API with automatic local fallback if unavailable.';
+  }
+  void fetch('/api/npc/tts/status',{signal}).then(r=>r.json()).then(data=>{deepgramConfigured=!!data.engines?.find((e:{id:string;configured:boolean})=>e.id==='deepgram')?.configured;updateVoiceEngine();}).catch(()=>{ui.voiceEngineStatus.textContent='Voice service status unavailable.';});
+  updateVoiceEngine();
   let activityAudio:AudioContext|undefined;
   function playActivitySound(kind:'bell'|'water'|'chest'){
     activityAudio??=new AudioContext();void activityAudio.resume();
@@ -131,7 +147,7 @@ export function startGame(root: HTMLElement) {
   try{
     const saved=localStorage.getItem('apeiron-npc-provider');if(saved==='local'||saved==='hybrid'||saved==='auto'||saved==='manual')ui.npcProvider.value=saved;
     const selection=JSON.parse(localStorage.getItem('apeiron-npc-cloud-model')||'null');
-    if(selection&&['gemini','groq','anyrouter'].includes(selection.provider)&&typeof selection.model==='string'){
+    if(selection&&['gemini','groq','anyrouter','zai'].includes(selection.provider)&&typeof selection.model==='string'){
       ui.npcCloudProvider.value=selection.provider;ui.npcCloudModel.add(new Option(selection.model,selection.model));
     }
   }catch{/* Storage may be unavailable. */}

@@ -1,3 +1,4 @@
+import {stopWorker,cpuWorkerEnv} from './worker-process.ts';
 import {spawn,type ChildProcessWithoutNullStreams} from 'node:child_process';
 import {existsSync} from 'node:fs';
 import {resolve} from 'node:path';
@@ -22,11 +23,11 @@ export class LocalTts {
     if(!existsSync(this.python))return Promise.reject(Error('Local voice is not installed. Run npm run tts:setup.'));
     this.startup=new Promise<void>((accept,reject)=>{
       const child=spawn(this.python,['-u',resolve(this.root,'server/local_tts.py')],{
-        cwd:this.root,windowsHide:true,env:{...process.env,HF_HOME:resolve(this.root,'.local-tts/cache'),HF_HUB_OFFLINE:'1',PYTHONIOENCODING:'utf-8',PARADEE_VOICE:this.voice},
+        cwd:this.root,windowsHide:true,env:{...process.env,...cpuWorkerEnv,HF_HOME:resolve(this.root,'.local-tts/cache'),HF_HUB_OFFLINE:'1',PYTHONIOENCODING:'utf-8',PARADEE_VOICE:this.voice},
       });
       this.child=child;
       const fail=(error:Error)=>{this.ready=false;this.startup=undefined;reject(error);for(const task of this.pending.values()){clearTimeout(task.timer);task.reject(error);}this.pending.clear();};
-      const timer=setTimeout(()=>{child.kill();fail(Error('Local voice startup timed out. Run npm run tts:setup to finish downloads.'));},120000);
+      const timer=setTimeout(()=>{stopWorker(child);fail(Error('Local voice startup timed out. Run npm run tts:setup to finish downloads.'));},120000);
       child.stderr.on('data',data=>process.stderr.write(`[local voice] ${data}`));
       child.once('error',error=>{clearTimeout(timer);fail(error);});
       child.once('exit',()=>{clearTimeout(timer);if(this.child===child)this.child=undefined;fail(Error('Local voice worker stopped.'));});
@@ -40,20 +41,20 @@ export class LocalTts {
           const wav=Buffer.from(result.wav,'base64');
           if(wav.length<44 || wav.toString('ascii',0,4)!=='RIFF')return task.reject(Error('Invalid local audio'));
           task.resolve({wav,latencyMs:result.latencyMs,durationMs:result.durationMs});
-        }catch{child.kill();fail(Error('Invalid local voice worker response'));}
+        }catch{stopWorker(child);fail(Error('Invalid local voice worker response'));}
       });
     });
     return this.startup;
   }
-  async synthesize(text:string):Promise<LocalAudio>{
+  async synthesize(text:string,voice=this.voice):Promise<LocalAudio>{
     await this.start();
     if(this.pending.size>=2)throw Error('Local voice is busy');
     const id=++this.id;
     return new Promise((accept,reject)=>{
       const timer=setTimeout(()=>{this.pending.delete(id);reject(Error('Local voice timed out'));},30000);
       this.pending.set(id,{resolve:accept,reject,timer});
-      this.child!.stdin.write(JSON.stringify({id,text})+'\n',error=>{if(error){clearTimeout(timer);this.pending.delete(id);reject(error);}});
+      this.child!.stdin.write(JSON.stringify({id,text,voice})+'\n',error=>{if(error){clearTimeout(timer);this.pending.delete(id);reject(error);}});
     });
   }
-  close(){this.child?.kill();}
+  close(){stopWorker(this.child);}
 }

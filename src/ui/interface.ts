@@ -55,10 +55,10 @@ export function createInterface(root: HTMLElement) {
       <label class="checkbox"><input id="npc-ai" type="checkbox" checked /> Use decision model for the caretaker</label>
       <label class="checkbox"><input id="npc-llm" type="checkbox" /> NPC conversation and planning</label>
       <label for="npc-provider">Conversation and planning model</label>
-      <select id="npc-provider"><option value="auto">Automatic: Gemini, Groq, AnyRouter free</option><option value="manual">Manual: choose provider and model</option><option value="hybrid">Hybrid: local vision + Groq</option><option value="local">Fully local: vision + conversation + planning</option></select>
+      <select id="npc-provider"><option value="auto">Automatic: available free models</option><option value="manual">Manual: choose provider and model</option><option value="hybrid">Hybrid: local vision + Groq</option><option value="local">Fully local: vision + conversation + planning</option></select>
       <div id="npc-manual-settings" hidden>
         <label for="npc-cloud-provider">AI provider</label>
-        <select id="npc-cloud-provider"><option value="gemini">Gemini</option><option value="groq">Groq</option><option value="anyrouter">AnyRouter (free routes)</option></select>
+        <select id="npc-cloud-provider"><option value="gemini">Gemini</option><option value="groq">Groq</option><option value="anyrouter">AnyRouter (free routes)</option><option value="zai">Z.ai (free models)</option></select>
         <label for="npc-cloud-model">AI model</label>
         <select id="npc-cloud-model" aria-describedby="npc-model-note"></select>
         <p id="npc-model-note" class="note" role="status">Loading models…</p>
@@ -67,7 +67,14 @@ export function createInterface(root: HTMLElement) {
       </fieldset>
       <fieldset class="settings-group"><legend>Voice and microphone</legend>
       <label class="checkbox"><input id="npc-voice" type="checkbox" checked /> NPC voice replies</label>
-      <p class="note">Local voice runs on your CPU. Text appears before speech is ready.</p>
+      <label for="voice-engine">Voice engine</label>
+      <select id="voice-engine"><option value="deepgram">Deepgram API (local fallback)</option><option value="paradee">Paradee (local CPU)</option></select>
+      <label for="deepgram-voice">Deepgram voice (English)</label>
+      <select id="deepgram-voice"></select>
+      <label for="local-voice">Local / fallback voice (English)</label>
+      <select id="local-voice"></select>
+      <p id="voice-engine-status" class="note" role="status"></p>
+      <p class="note">Speech comes from the NPC. Text appears before speech is ready.</p>
       <p class="note">Hold V to speak; release to send. Voice comes from the NPC?s position.</p>
       </fieldset>
       <p id="npc-service" class="note" role="status">Checking decision service…</p>
@@ -111,6 +118,7 @@ export function createInterface(root: HTMLElement) {
     npcStatus: get('npc-status'), npcAI: get<HTMLInputElement>('npc-ai'), npcService: get('npc-service'),
     aiUsageHud:get('ai-usage-hud'),aiUsageMenu:get('ai-usage-menu'),
     npcLLM:get<HTMLInputElement>('npc-llm'),npcVoice:get<HTMLInputElement>('npc-voice'),npcSubtitle:get('npc-subtitle'),
+    deepgramVoice:get<HTMLSelectElement>('deepgram-voice'),localVoice:get<HTMLSelectElement>('local-voice'),voiceEngine:get<HTMLSelectElement>('voice-engine'),voiceEngineStatus:get('voice-engine-status'),
     npcProvider:get<HTMLSelectElement>('npc-provider'),
     npcManualSettings:get('npc-manual-settings'),npcCloudProvider:get<HTMLSelectElement>('npc-cloud-provider'),npcCloudModel:get<HTMLSelectElement>('npc-cloud-model'),npcModelNote:get('npc-model-note'),
     npcCommand: get<HTMLFormElement>('npc-command'), npcMessage: get<HTMLInputElement>('npc-message'),

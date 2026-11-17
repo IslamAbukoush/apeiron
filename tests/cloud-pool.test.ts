@@ -73,7 +73,26 @@ test('manual selection pins a single model and cooldown does not switch provider
   assert.equal((await pool.transport('',{...request,headers:{'X-NPC-Cloud-Provider':'anyrouter','X-NPC-Model':'paid/model'}})).status,400);assert.equal(calls,1);
 });
 
+test('Z.ai uses only its free flash models with thinking disabled and parses structured replies',async()=>{
+  const models:string[]=[];
+  const pool=createCloudPool({zaiKey:'private-zai',geminiModels:[],groqModels:[],fetcher:(async(url,options)=>{
+    assert.equal(url,'https://api.z.ai/api/paas/v4/chat/completions');
+    const body=JSON.parse(options!.body as string);models.push(body.model);assert.deepEqual(body.thinking,{type:'disabled'});
+    return Response.json({choices:[{finish_reason:'stop',message:{content:'```json\n{"speech":"Hello from Z.ai!","plan":[{"action":"JUMP","targetId":null,"interaction":null,"state":null}]}\n```'}}],usage:{total_tokens:18}});
+  }) as typeof fetch});
+  const format={properties:{plan:{items:{enum:['JUMP']}}}};
+  const r=await pool.transport('',init({...input,stream:false,format} as any));
+  assert.deepEqual(JSON.parse((await r.json()).message.content).plan,['JUMP']);
+  assert.deepEqual(models,['glm-4.7-flash']);
+  assert.deepEqual(pool.catalog().filter(m=>m.provider==='zai'),[
+    {provider:'zai',model:'glm-4.7-flash',vision:false,configured:true},
+    {provider:'zai',model:'glm-4.5-flash',vision:false,configured:true},
+    {provider:'zai',model:'glm-4.6v-flash',vision:true,configured:true},
+  ]);
+});
+
 test('AnyRouter free-model 429 cools its account pool instead of hammering every free model',async()=>{
+
   let calls=0;const pool=createCloudPool({anyrouterKey:'q',geminiModels:[],groqModels:[],fetcher:(async()=>{calls++;return Response.json({}, {status:429,headers:{'retry-after':'20'}});}) as typeof fetch});
   assert.equal((await pool.transport('',init())).status,503);assert.equal(calls,1);
   assert.equal(pool.status().pool.filter(e=>e.state==='cooling').length,3);
